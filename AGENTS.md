@@ -3,6 +3,7 @@
 - Read `README.md` and `docs/project/earthquake-stability.md` before changing project scope.
 - For documentation and project-description work, stay on `project_description` and push that branch. Do not switch to or merge into another branch unless asked.
 - Use the smallest complete change. Keep responses concise, and report only verified results; the shared `ponytail` skill is in `.agents/skills/ponytail/`.
+- Apply the shared Ponytail skill for coding here. Use other account-wide skills when their specific task matches; do not apply unrelated design or automation skills to project documentation.
 - The Raspberry Pi implementation is owned by a teammate. Do not replace, reorganize, or invent that code without coordinating with its owner.
 - Distinguish implemented behavior, planned behavior, and research ideas in every README, demo, and PR.
 - Do not describe camera output as proof of safe entry or as a validated collapse prediction. State measured motion, uncertainty, and the need for qualified building assessment.
