@@ -15,6 +15,16 @@ It is not a building-safety certification system. Its only alert is **inspection
 - JSON-lines evidence log and optional normal/magnified MP4 files.
 - Synthetic unit tests for the signal analysis and decision policy.
 
+### Cardboard-building preview
+
+For the tabletop demo, a separate, implemented `seismovision-cardboard` preview finds the dominant central brown-cardboard structure, joins its panels across seams/tape, and draws a yellow outline and corner points. It uses OpenCV rather than YOLO because the supplied photos are not labelled training data and a small custom YOLO model would be unreliable. Run it on the Pi's attached display:
+
+```bash
+python -m seismovision.cardboard_preview --camera picamera2 --width 640 --height 480 --mask
+```
+
+Press `q` to stop. The camera image appears on the left and the selected black/white mask on the right. This is a cardboard-demo detector, not a general cardboard recognizer: it assumes the target is the largest sufficiently brown structure near the middle of the frame. For a learned YOLO segmentation model, collect and manually mask many positive and negative images from the deployment environment before training; do not add the supplied office photos to Git.
+
 The system intentionally uses configured regions instead of automatically selecting the largest moving object. In outdoor building footage that object is often a tree, vehicle, or shadow.
 
 ## Pi 4 quick start
