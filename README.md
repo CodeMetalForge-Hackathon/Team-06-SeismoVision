@@ -9,6 +9,7 @@ After an earthquake or other damaging event, responders may need to work near a 
 ## Start here
 
 - [Project brief](docs/project/earthquake-stability.md): problem, proposed system, hardware, and limits.
+- [Project writeup](docs/project/project-draft.md): research-backed draft and 640 × 480, 30 fps camera baseline.
 - [Demo runbook](docs/demo/runbook.md): planned physical demonstration and validation record.
 - [Research and evidence](docs/research/evidence.md): relevant methods and what they do and do not establish.
 - [Hackathon logistics](docs/logistics/hackathon.md): official rubric, timeline, and submission requirements.

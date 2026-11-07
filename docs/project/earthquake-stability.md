@@ -14,7 +14,11 @@ The initial user is a first responder or special operations team assessing a haz
 
 ## Proposed system
 
-The team currently has a Raspberry Pi 5, Raspberry Pi camera module, and AI HAT+ 26 TOPS. A teammate owns the implementation and will publish it in this repository. An ultrasonic sensor or other complementary sensor is being considered; its model, placement, and contribution are not yet fixed.
+The team currently has a Raspberry Pi 5, Camera Module 3, and AI HAT+ 26 TOPS. A teammate owns the implementation. An ultrasonic sensor or other complementary sensor is being considered; its model, placement, and contribution are not yet fixed.
+
+The agreed starting point for the camera analysis is **640 × 480 at 30 frames per second**. The team will establish motion accuracy and processing speed at this baseline, then test higher resolution and frame rates one change at a time. The [live Project Draft](https://docs.google.com/document/d/1R1bV6s_dKIiCPTpNjPlFjH4C7jETn-MTjPRs5dSnEEA/edit?tab=t.cduxvcafdeir) and [versioned writeup](project-draft.md) contain the proposed camera settings and validation checks. These settings are a test plan, not a verified optimum.
+
+**Implementation handoff:** `seismovision/config.example.json` currently uses 1280 × 720 at 30 fps, with regions defined in those coordinates. The implementation owner must revise the resolution and regions together before using the agreed baseline.
 
 The intended field concept is a portable camera on a tripod, pointed at a structure from a suitable observation position. Processing should run locally on the Pi so the core measurement does not depend on cellular service or cloud access. The proposed analysis tracks visible features or selected regions of the target, estimates camera movement from a reference where possible, and reports target motion with a reliability indication. Sensor fusion and any use of the AI HAT+ remain implementation decisions to validate, not completed capabilities.
 
@@ -38,7 +42,7 @@ Post-earthquake entry decisions also consider damage, nonstructural hazards, and
 
 ## What the team must still establish
 
-- Exact Pi camera model, frame rate, optics, mounting, reference features, and operating distance.
+- Exact Camera Module 3 variant, optics, mounting, reference features, operating distance, and measured performance at the 640 × 480, 30 fps baseline.
 - Exact complementary sensor model and whether it measures useful target or camera motion.
 - Ground-truth motion measurements for each demo condition and a calibration procedure.
 - Tested sensitivity, false alerts, latency, repeatability, and unreliable-data behavior.
