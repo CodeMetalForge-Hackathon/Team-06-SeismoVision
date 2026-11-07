@@ -1,8 +1,16 @@
 # Implementation
 
-Reserved for the teammate building the Raspberry Pi prototype. This organization pass does not add or change device code.
+The teammate-owned Raspberry Pi application is in [`seismovision`](../seismovision/README.md).
 
-When the implementation lands, document:
+The additive [`motion_prototype`](motion_prototype/README.md) experiment measures a grid
+of image displacements relative to an independent reference, with camera translation,
+rotation and scale compensation. It includes controlled-image tests and a video runner.
+It does not change the teammate's device application and is not yet integrated into it
+or a website. Hardware performance and field accuracy remain unverified.
+
+See the [verification record](motion_prototype/VERIFICATION.md) for observed checks.
+
+Device integration should document:
 
 - Hardware and exact camera and sensor models.
 - Operating system, dependencies, and installation commands.

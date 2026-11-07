@@ -21,3 +21,20 @@ This file records methods relevant to the camera-first prototype. **No source be
 - Are any thresholds experimentally calibrated for this specific model, and are they clearly labeled as **demo thresholds**?
 
 Only after those measurements are validated should the team discuss broader structural inference with an engineer. The 2020 study's numerical drift limits apply to its specified steel-building category and are not defaults for this project.
+
+## Motion-map experiment: use of the requested papers
+
+The additive `code/motion_prototype` experiment borrows the design goals of ROI processing,
+camera compensation and independent validation. It does not reproduce either paper.
+
+- The [IIETA paper](https://iieta.org/journals/ts/paper/10.18280/ts.400607) selects a moving
+  ROI using frame differences, thresholding and the largest connected region, then applies
+  spatial/temporal magnification. That selector does not establish that the object is a
+  building. Our experiment uses operator-selected regions and measures unamplified frames.
+- The [smart-camera full text](https://pmc.ncbi.nlm.nih.gov/articles/PMC7349837/) combines
+  calibrated target measurements with two accelerometers and camera rotation compensation.
+  Our reference-image similarity transform is a simpler experimental alternative; no
+  accelerometer fusion, engineering-unit conversion or damage classification is implemented.
+- The user-supplied [DOAJ record](https://doaj.org/article/b7ef950f1b3a4864afcbc91e8935ed5e)
+  was inaccessible through the research tool. The titled smart-camera paper was read through
+  PMC; the identity of the inaccessible DOAJ record was not independently verified.
