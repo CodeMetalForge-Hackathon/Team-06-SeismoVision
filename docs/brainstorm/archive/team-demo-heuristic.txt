@@ -1,0 +1,338 @@
+The High-Fidelity Winning Formula
+W = (P \times V \times N \times S) \times (T \times H \times \Sigma) \times E \times F
+Variable
+Name
+Range
+Measures
+P
+Problem Reality
+0–10
+Is the pain point validated and urgent, or thematic/creative?
+V
+Visceral Demo
+0–10
+The "wow" factor; can a judge understand the value in < 20 seconds?
+N
+Novelty
+0–10
+Does it introduce a new interaction paradigm or technical "first"?
+S
+Storytelling
+0–10
+Narrative framing; does the pitch connect technical "what" to human "why"?
+T
+Technical Depth
+1–3×
+1× = single API call. 2× = multi-model pipeline. 3× = research-grade.
+H
+Hardware Factor
+0.8–2×
+From "janky" artifacts (0.8×) to seamless physical interaction (2×).
+\Sigma
+Wave Riding
+1–2×
+Trend relevance (hot tech) + technical leverage (new capabilities).
+E
+Execution Quality
+0.5–1.5×
+Reliability, polish, low-latency/calibration "feel."
+F
+Strategic Focus
+1–1.5×
+Moat building via feature cutting and demo-first design.
+
+
+
+
+Scoring Rubric
+P — Problem Reality (0–10)
+Core question: Would someone pay to solve this today?
+Score
+Description
+Signal
+Example
+0
+No real problem
+"We thought it'd be cool"
+Compile C++ to Google Sheets
+1–3
+Creative / thematic
+Fun but no one suffers without it
+Wine swirling (Sentez! P=5)
+4–5
+Real but broad
+Problem exists but isn't urgent or specific
+Women's walking safety (Wavelly P=7)
+6–7
+Validated pain, specific demographic
+Can cite stats, a population suffers
+Memory loss for Alzheimer's (Remi P=9)
+8–9
+Urgent, high-stakes, life-affecting
+People die, go bankrupt, or suffer daily
+Navigation for blind (Shepherd P=9)
+10
+Existential / immediate life-or-death
+The problem kills people right now
+Cardiac arrest (HeartStart), malaria detection (Athelas)
+How to grade:
+    •    Can you name a specific demographic? (+2)
+    •    Can you cite a real statistic? (+1)
+    •    Is there existing spend on this problem (people already pay for bad solutions)? (+2)
+    •    Would ignoring this problem cause measurable harm? (+2)
+    •    Is the urgency time-sensitive (not "someday")? (+1)
+V — Visceral Demo (0–10)
+Core question: Does the room react in the first 20 seconds?
+Score
+Description
+Signal
+Example
+0–2
+Terminal / logs / text output
+"Let me explain what's happening..."
+Backend dev tools, database optimizers
+3–4
+Functional UI, nothing memorable
+It works, judges nod politely
+Standard web dashboard, chat interface
+5–6
+Clear visual payoff, some "cool" factor
+Judges lean in, ask questions
+Safety heatmap on a map (Lumos V=7)
+7–8
+Strong reaction, judges remember it
+Audible response, people pull out phones
+3D hospital map updating live (Haven V=8)
+9–10
+"Holy shit" — room goes silent or erupts
+Judges physically react, demo sells itself
+Cane steers user (Shepherd), body moves involuntarily (Catatouille), FaceTime answers (FaceTimeOS)
+How to grade:
+    •    Can a judge understand value with zero explanation? (+3)
+    •    Does the demo create a physical/sensory moment? (+2)
+    •    Would someone film this on their phone? (+2)
+    •    Does it work live, not as a recording? (+2)
+    •    Is there a single "peak moment" you can point to? (+1)
+N — Novelty (0–10)
+Core question: Has a judge seen this interaction paradigm before?
+Score
+Description
+Signal
+Example
+0–2
+Exists on Devpost, multiple times
+"I've seen 10 of these today"
+Todo app with AI, chatbot wrapper
+3–4
+Exists but with a minor twist
+Incremental improvement on known concept
+Safe-route navigation (Wavelly N=4)
+5–6
+Known concept, meaningful new angle
+Same category but different approach
+Eldercare AI (EldaAI N=5), face recognition robot (Remi N=6)
+7–8
+New combination that creates surprise
+"I didn't know you could combine these"
+FPPG + multi-agent hospital (Haven N=7), safety-first navigation with 48GB FBI data (Lumos N=7)
+9–10
+New interaction paradigm — "first"
+"I didn't know this was possible"
+FaceTime as C&C (FaceTimeOS N=9), GVS involuntary movement (Catatouille N=10), brainwave music (Duet N=10)
+How to grade:
+    •    Search Devpost for the core concept. How many results? (>20 = low N, <3 = high N)
+    •    Is the interaction new, or just the implementation? (Interaction = higher)
+    •    Would a technically illiterate person find it surprising? (+2)
+    •    Does it combine domains that haven't been combined before? (+2)
+    •    Is there a "first" you can credibly claim? (+2)
+S — Storytelling (0–10)
+Core question: Does the pitch make judges feel something?
+Score
+Description
+Signal
+Example
+0–2
+No narrative, just features
+"It does X, Y, Z"
+Feature list with no human connection
+3–4
+Generic problem framing
+"Many people struggle with..."
+Broad statistics, no personal angle
+5–6
+Clear "why" but impersonal
+Problem is real, framing is functional
+Misinformation is bad (No Cap S=6)
+7–8
+Personal origin or strong frame
+"My grandma..." or "When I was..."
+Remi (S=9 — Jenny's Alzheimer's), Haven (S=9 — David's great-uncle)
+9–10
+Narrative transforms the project
+The story IS the demo; judges retell it
+"A cane that steers you" (Shepherd S=10), EPFL fluid dynamics citation (Sentez! S=9)
+Two paths to high S:
+    1    Personal origin story — a real person you know suffers from this (Remi's Jenny, Haven's great-uncle)
+    2    Scientific authority — cite a real paper or research that elevates the project (Sentez!'s EPFL study)
+How to grade:
+    •    Is there a named person or specific moment that inspired this? (+3)
+    •    Can the project be described in one sentence that a non-technical person retells? (+2)
+    •    Does the narrative connect the technical "what" to a human "why"? (+2)
+    •    Would a journalist write about this project based on the story alone? (+2)
+    •    Does the framing make a "creative" project feel serious? (+1)
+T — Technical Depth (1–3×)
+Core question: How many systems deep is the engineering?
+Score
+Description
+Example
+1×
+Single API call, wrapper
+One LLM prompt for summarization
+1.5×
+Multi-API integration, no custom logic
+Google Maps + Gemini + Twilio (Wavelly)
+2×
+Multi-model pipeline, custom orchestration
+Claude + Fish Audio + Fetch.ai + Groq (FaceTimeOS), YOLOv8 + DeepFace + OM1 (Remi)
+2.5×
+Pipeline + custom algorithms or sensor fusion
+Flex sensors + OpenCV + Madgwick filters (Cadence), GVS + TENS + current-limiting circuit (Catatouille)
+3×
+Research-grade — inverse kinematics, theorem provers, from-scratch implementations
+IK from scratch (Baymax), LiDAR + CV + terrain detection (Shepherd), VR + Lean provers (Robosurge)
+How to grade:
+    •    Count distinct technical systems integrated (1 = 1×, 3+ = 2×, 5+ with custom logic = 2.5–3×)
+    •    Did you implement any algorithm from scratch (not just call an API)? (+0.5×)
+    •    Would a technical judge need 5+ minutes to understand the architecture? (+0.5×)
+    •    Does the system handle failure modes gracefully? (+0.5×)
+H — Hardware Factor (0.8–2×)
+Core question: Does the project exist in physical space?
+Score
+Description
+Example
+0.8×
+Hardware that fails or looks janky
+Unstable robot arm, unreliable sensors during demo
+1×
+Pure software
+Web app, mobile app, CLI tool
+1.2×
+Simple hardware augmentation
+Webcam-based tracking, microphone array
+1.5×
+Purposeful physical artifact
+Flex sensor glove (Cadence), $5 lens (Athelas), thermal printer (Diffuji), ESP32 teddy bear (Ted.AI)
+2×
+Actuation — hardware that moves the user or world
+Motorized cane (Shepherd), robotic feeding arm (Baymax), GVS body control (Catatouille), wine agitator (Sentez!)
+The key distinction: Sensing (H = 1.2–1.5\times) vs. Actuation (H = 2\times). Sensors read the world. Actuators change the world. Judges remember what moved them — literally.
+How to grade:
+    •    Does a judge physically interact with hardware? (+0.5×)
+    •    Does the hardware create a sensory experience (touch, motion, sound)? (+0.5×)
+    •    Does it actuate — move the user or an object? (+0.5× → caps at 2×)
+    •    Does the hardware work reliably during the demo? (If no, penalty to 0.8×)
+\Sigma — Wave Riding (1–2×)
+Core question: Is this project possible today but wasn't 6 months ago?
+Score
+Description
+Example
+1×
+Established tech, nothing frontier
+Standard CRUD, REST APIs, basic ML
+1.2×
+Uses current tech but not pushing boundaries
+RAG pipelines (2024), basic LLM integration
+1.5×
+Leverages a new capability or platform deeply
+OM1 agent architecture (Remi), EEG + LLM (Duet), edge ML on microcontroller
+2×
+First-to-demo a frontier paradigm
+Multi-agent societies (Longshot), FaceTime hijack via virtual audio (FaceTimeOS), GVS bio-interfacing (Catatouille — though niche, so \Sigma = 1\times)
+How to grade:
+    •    Could this project have been built 1 year ago with the same result? (Yes = 1×, No = 1.5×+)
+    •    Are you using a technology released in the last 6 months? (+0.5×)
+    •    Would a frontier AI lab (OpenAI, Anthropic, Google) retweet this? (+0.5×)
+    •    Does the project demonstrate a capability the tech's own creators haven't showcased? (+0.5×)
+Warning: \Sigma is about technical wave riding, not thematic. "AI for social good" is a theme, not a wave. Using the OpenAI Realtime API for the first time at a hackathon IS a wave.
+E — Execution Quality (0.5–1.5×)
+Core question: Does it feel like a product or a prototype?
+Score
+Description
+Example
+0.5×
+Crashes during demo, major bugs
+"Let me restart..." — judge moves on
+0.8×
+Works sometimes, visible jank
+Noticeable latency, UI glitches, sensor drift
+1.0×
+Functional — does what it claims
+Works but feels like a hackathon project
+1.1–1.2×
+Polished — smooth UX, good error handling
+Consistent responses, clean transitions (Shepherd E=1.2\times)
+1.3–1.4×
+Calibrated — handles edge cases, adaptive
+Interactive calibration wizard (Cadence E=1.4\times), reliable classification across environments (DAD E=1.3\times)
+1.5×
+Premium feel — judges forget it's a hackathon
+Precise control, zero visible latency, seamless experience (Sentez! E=1.5\times)
+How to grade:
+    •    Does the demo work on first try, every time? (+0.2×)
+    •    Is there a calibration step that makes it reliable? (+0.2×)
+    •    Is the latency low enough that it feels real-time? (+0.2×)
+    •    Does the UI/UX feel intentional, not afterthought? (+0.1×)
+    •    Would a non-technical person be able to use it? (+0.1×)
+Critical rule: T \times E must be balanced. T = 3\times with E = 0.8\times (crashes) is worse than T = 2\times with E = 1.2\times (smooth). If crash risk exceeds 20%, simplify or fake the risky part for the demo.
+F — Strategic Focus (1–1.5×)
+Core question: Did you build only what appears in the demo?
+Score
+Description
+Example
+0.8–0.9×
+Feature sprawl — built everything, demo unfocused
+Three separate use cases (No Cap F=0.9\times), web + mobile + robot for 2 people (Remi F=1.1\times)
+1.0×
+Standard scope — built what was needed
+Most projects land here
+1.1–1.2×
+Focused — clear demo arc, minimal waste
+Tight 3-layer demo (Haven F=1.1\times), focused on core recognition loop (Remi F=1.1\times)
+1.3–1.4×
+Demo-first engineering — worked backwards from pitch
+Call → command → screenshot (FaceTimeOS F=1.3\times), cut terrain classification for steering demo (Shepherd F=1.5\times)
+1.5×
+Surgical — every component serves the 3-minute pitch
+Only demo-visible features built, everything else cut (Shepherd F=1.5\times)
+How to grade:
+    •    Can you describe the demo in one sentence? (+0.1×)
+    •    Did you cut features to make the demo tighter? (+0.2×)
+    •    Did you work backwards from the pitch? (+0.2×)
+    •    Is there a clear "beginning → climax → confirmation" arc? (+0.1×)
+    •    Would removing any feature weaken the demo? (If no, F drops — you built too much)
+The Expanded Zero Rule: The Safety Gatekeeper
+
+If P, V, or N = 0, then W = 0.
+No amount of technical depth or hardware saves a fake problem, boring demo, or zero novelty. These three are multiplicative, not additive — remove any one and the whole thing collapses.
+
+Safety/Ethics Threshold (R)
+For any project involving bio-interfacing (GVS, TENS, EEG), if user risk is unmitigated (R < 1), then W = 0.
+Validation: Catatouille (MakeMIT '26) addressed this by building a custom current-limiting circuit (capped at 3mA) to prevent neural damage, ensuring the "trust" required for a grand prize win.
+The Nucleus: Storytelling and Scientific Authority
+The core nucleus (P \times V \times N \times S) determines the project's baseline resonance. While Stanford (TreeHacks) favors social impact, the Harvard/MIT circuit (MakeMIT) rewards novel physical interaction and "scientific authority."
+Storytelling (S) as a Performance Catalyst
+Storytelling provides the emotional authority that allows a "creative" project to win a "general" grand prize.
+    •    Duet (CalHacks '24): Framed EEG-to-music as a "voice" for children with communication disabilities (S = 9).
+    •    Sentez! (MakeMIT '26): Transformed a wine-swirling agitator into a high-stakes engineering project by framing it through French cultural ritual and referencing an EPFL fluid-dynamics study on "Surface wave dynamics in orbital shaken cylindrical containers."
+The Virality vs. Grand Prize Split
+"Freak in the Sheets" (TreeHacks '26) remains the benchmark for virality. Maximum Novelty (N = 10) and Visual Impact (V = 10) earned it two category wins, but low Problem Reality (P = 1) correctly prevented an overall win.
+Multipliers: Actuation, Engineering, and Calibration
+The multipliers (T, H, \Sigma) provide the "unfair advantage" necessary for top-tier placement.
+The Hardware Actuation Advantage (H)
+Hardware is the strongest multiplier because it creates a "sensory anchor." In 2025-2026, the dominant trend is Actuation — technology that moves the user or the world.
+    •    Shepherd (TreeHacks '26): Motorized omni-wheel cane that steers the user.
+    •    Baymax (TreeHacks '24): Robotic arm with inverse kinematics that feeds the user.
+    •    Catatouille (MakeMIT '26): GVS and TENS modules that move the user's body involuntarily to follow a cat's motion.
+These projects achieve H = 2.0\times by moving beyond passive sensors to active physical feedback.
+Execution Quality (E): The Calibration/UX Factor
+Winning projects demonstrate that "Polish" includes Calibration. Cadence (MakeMIT '26) achieved high E by including an interactive OpenCV calibration wizard to manage flex sensor jitter and drift. This transformed "cheap" sensors into a "premium" instrument feel.
