@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "seismovision"
+version = "0.1.0"
+description = "Conservative camera-based structural response screening"
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.21", "opencv-python>=4.5"]
+
+[project.scripts]
+seismovision = "seismovision.app:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
