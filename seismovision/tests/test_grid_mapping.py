@@ -22,9 +22,10 @@ class GridGeometryTests(unittest.TestCase):
 
         tracker = RegionFlow((10, 20, 30, 40), min_points=3)
         tracker._previous = np.zeros((80, 80), dtype=np.uint8)
-        tracker._points = np.array([[[12.0, 22.0]], [[15.0, 25.0]], [[18.0, 28.0]]], dtype=np.float32)
+        tracker._points = np.array([[[12.0 + index, 22.0 + index]] for index in range(10)], dtype=np.float32)
+        tracker._expected_points = 10
         reacquired = np.array([[[13.0, 23.0]], [[16.0, 26.0]], [[19.0, 29.0]]], dtype=np.float32)
-        with patch("seismovision.tracking.cv2.calcOpticalFlowPyrLK", return_value=(tracker._points + 1, np.array([[1], [0], [0]], dtype=np.uint8), np.zeros((3, 1), dtype=np.float32))), patch.object(tracker, "_detect", return_value=reacquired) as detect:
+        with patch("seismovision.tracking.cv2.calcOpticalFlowPyrLK", return_value=(tracker._points + 1, np.array([[1], [1], [1], [1], [0], [0], [0], [0], [0], [0]], dtype=np.uint8), np.zeros((10, 1), dtype=np.float32))), patch.object(tracker, "_detect", return_value=reacquired) as detect:
             result = tracker.update(np.ones((80, 80), dtype=np.uint8))
         detect.assert_called_once()
         self.assertEqual(tracker.roi, (10, 20, 30, 40))

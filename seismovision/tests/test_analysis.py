@@ -1,10 +1,11 @@
 import math
 import unittest
+from pathlib import Path
 
 import numpy as np
 
 from seismovision.analysis import LowPassVector, RollingVibrationAnalyzer, VibrationMetrics, assess_inter_node_frequency, choose_stronger_axis, evaluate
-from seismovision.config import AnalysisConfig, TargetConfig
+from seismovision.config import AnalysisConfig, TargetConfig, load_grid_config
 
 
 class AnalysisTests(unittest.TestCase):
@@ -65,6 +66,11 @@ class AnalysisTests(unittest.TestCase):
         metrics = VibrationMetrics(300, 1.2, 0.4, 0.9)
         result = assess_inter_node_frequency(metrics, metrics, roof, mid, self.config)
         self.assertEqual(result.state, "BASELINE_REQUIRED")
+
+    def test_grid_config_exposes_frequency_bounds(self):
+        config = load_grid_config(Path(__file__).parents[1] / "grid_config.example.json")
+        self.assertEqual(config.analysis.min_frequency_hz, 0.2)
+        self.assertEqual(config.analysis.max_frequency_hz, 5.0)
 
 
 if __name__ == "__main__":

@@ -37,6 +37,7 @@ class RegionFlow:
         self.min_points = min_points
         self._points: Optional[np.ndarray] = None
         self._previous: Optional[np.ndarray] = None
+        self._expected_points = min_points
 
     def _detect(self, gray: np.ndarray) -> Optional[np.ndarray]:
         x, y, _, _ = self.roi
@@ -47,6 +48,7 @@ class RegionFlow:
         if points is not None:
             points[:, 0, 0] += x
             points[:, 0, 1] += y
+            self._expected_points = len(points)
         return points
 
     def reset(self) -> None:
@@ -75,7 +77,8 @@ class RegionFlow:
         new = new_points[valid] if new_points is not None else np.empty((0, 1, 2), np.float32)
         self._previous = gray
         count = len(new)
-        if count < self.min_points:
+        reacquire_below = max(self.min_points, (self._expected_points + 1) // 2)
+        if count < reacquire_below:
             # Reacquire only within the original ROI; never changes the operator's boxes.
             self._points = self._detect(gray)
             count = 0 if self._points is None else len(self._points)

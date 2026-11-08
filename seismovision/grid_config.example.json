@@ -1,0 +1,24 @@
+{
+  "camera": {
+    "width": 640,
+    "height": 480,
+    "fps": 30
+  },
+  "analysis": {
+    "window_seconds": 30.0,
+    "minimum_samples": 180,
+    "min_frequency_hz": 0.2,
+    "max_frequency_hz": 5.0,
+    "minimum_track_points": 6,
+    "max_camera_motion_px": 1.5,
+    "camera_settle_frames": 15,
+    "minimum_confidence": 0.65
+  },
+  "magnification": {
+    "enabled": true,
+    "alpha": 8.0,
+    "pyramid_levels": 3,
+    "low_hz": 0.4,
+    "high_hz": 3.0
+  }
+}

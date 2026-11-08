@@ -1,13 +1,14 @@
 """Live user-bounded building grid preview."""
 
 import argparse
+from dataclasses import replace
 from typing import Dict
 
 import cv2
 import numpy as np
 
 from .capture import make_source
-from .config import AnalysisConfig, CameraConfig, MagnificationConfig, Rect
+from .config import AnalysisConfig, CameraConfig, MagnificationConfig, Rect, load_grid_config
 from .grid_mapping import BuildingGridMapper, GridCellState, refine_building_box
 from .magnification import RoiMotionMagnifier
 
@@ -68,13 +69,18 @@ def _draw_grid(frame: np.ndarray, mapper: BuildingGridMapper, states: Dict[str, 
 def main() -> None:
     parser = argparse.ArgumentParser(description="User-bounded 4x2 cardboard-building motion map")
     parser.add_argument("--camera", choices=("picamera2", "usb"), default="picamera2")
+    parser.add_argument("--config", help="JSON settings for camera, analysis, and magnification")
     parser.add_argument("--video")
-    parser.add_argument("--width", type=int, default=640)
-    parser.add_argument("--height", type=int, default=480)
-    parser.add_argument("--fps", type=int, default=30)
+    parser.add_argument("--width", type=int)
+    parser.add_argument("--height", type=int)
+    parser.add_argument("--fps", type=int)
     args = parser.parse_args()
 
-    camera = CameraConfig(width=args.width, height=args.height, fps=args.fps)
+    settings = load_grid_config(args.config) if args.config else None
+    camera = settings.camera if settings else CameraConfig(width=640, height=480, fps=30)
+    camera = replace(camera, width=args.width or camera.width, height=args.height or camera.height, fps=args.fps or camera.fps)
+    analysis = settings.analysis if settings else AnalysisConfig()
+    magnification = settings.magnification if settings else MagnificationConfig()
     source = make_source(camera, args.camera, args.video)
     mapper = None
     magnifiers = ()
@@ -89,9 +95,9 @@ def main() -> None:
                 cv2.putText(preview, "Draw building and stable-reference boxes in the selection windows", (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (0, 255, 255), 2)
                 cv2.imshow("SeismoVision grid map", preview)
                 building_box, reference_box = _select_regions(frame)
-                mapper = BuildingGridMapper(building_box, reference_box, AnalysisConfig())
+                mapper = BuildingGridMapper(building_box, reference_box, analysis)
                 mapper.tracker.validate(frame)
-                magnifiers = tuple(RoiMotionMagnifier(roi, MagnificationConfig(), args.fps) for roi in mapper.cells)
+                magnifiers = tuple(RoiMotionMagnifier(roi, magnification, camera.fps) for roi in mapper.cells) if magnification.enabled else ()
             else:
                 camera_motion, states = mapper.update(frame, timestamp)
                 if camera_motion > mapper.analysis.max_camera_motion_px:

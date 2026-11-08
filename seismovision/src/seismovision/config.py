@@ -49,6 +49,15 @@ class MagnificationConfig:
 
 
 @dataclass(frozen=True)
+class GridConfig:
+    """Configuration for the manual-box grid preview."""
+
+    camera: CameraConfig
+    analysis: AnalysisConfig
+    magnification: MagnificationConfig
+
+
+@dataclass(frozen=True)
 class OutputConfig:
     directory: str = "evidence"
     save_video: bool = True
@@ -109,3 +118,16 @@ def load_config(path: Union[str, Path]) -> AppConfig:
         magnification=magnification,
         output=OutputConfig(**raw.get("output", {})),
     )
+
+
+def load_grid_config(path: Union[str, Path]) -> GridConfig:
+    """Loads settings that do not require fixed target rectangles."""
+    raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    camera = CameraConfig(**raw.get("camera", {}))
+    analysis = AnalysisConfig(**raw.get("analysis", {}))
+    if analysis.min_frequency_hz <= 0 or analysis.max_frequency_hz <= analysis.min_frequency_hz:
+        raise ValueError("analysis frequency limits are invalid")
+    if analysis.camera_settle_frames < 1:
+        raise ValueError("analysis.camera_settle_frames must be positive")
+    magnification = MagnificationConfig(**raw.get("magnification", {}))
+    return GridConfig(camera, analysis, magnification)

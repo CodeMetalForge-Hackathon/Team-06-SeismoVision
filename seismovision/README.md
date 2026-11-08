@@ -79,7 +79,8 @@ python -m unittest discover -s tests -v
 `seismovision-grid` is a separate, implemented demo pipeline. At startup, the operator draws a rough building box and a second stable reference box. The program refines the building selection from its strongest edge contour, freezes that result, splits it into four rows by two columns, and tracks smaller inner boxes. Lost features are reacquired inside those fixed boxes without requiring another selection. Each cell receives an MEVM visualization, while frequency remains calculated from unamplified, camera-compensated optical flow. It draws tracker points, camera-compensated displacement arrows, and flags statistical frequency outliers as **anomalies**, not structural-safety verdicts. The right-hand dashboard shows eight FFT spectrograms: frequency on the vertical axis, time on the horizontal axis, and FFT amplitude as color.
 
 ```bash
-python -m seismovision.grid_preview --camera picamera2
+cp grid_config.example.json grid_config.json
+python -m seismovision.grid_preview --config grid_config.json --camera picamera2
 ```
 
-Draw the boxes with the mouse, then press Enter after each selection. Press `r` to select and refine both boxes again; press `q` to quit. Keep the reference ROI on a stationary, textured object outside the cardboard model.
+`grid_config.json` exposes camera settings, FFT frequency bounds, FFT window/sample requirements, tracking-point threshold, camera-motion recalibration limits, and MEVM settings. Draw the boxes with the mouse, then press Enter after each selection. Press `r` to select and refine both boxes again; press `q` to quit. Keep the reference ROI on a stationary, textured object outside the cardboard model.
