@@ -1,2 +1,3 @@
 [console_scripts]
 seismovision = seismovision.app:main
+seismovision-grid = seismovision.grid_preview:main

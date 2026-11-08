@@ -4,9 +4,12 @@ src/seismovision/__init__.py
 src/seismovision/__main__.py
 src/seismovision/analysis.py
 src/seismovision/app.py
+src/seismovision/auto_regions.py
 src/seismovision/capture.py
 src/seismovision/config.py
 src/seismovision/evidence.py
+src/seismovision/grid_mapping.py
+src/seismovision/grid_preview.py
 src/seismovision/magnification.py
 src/seismovision/tracking.py
 src/seismovision.egg-info/PKG-INFO
@@ -16,3 +19,5 @@ src/seismovision.egg-info/entry_points.txt
 src/seismovision.egg-info/requires.txt
 src/seismovision.egg-info/top_level.txt
 tests/test_analysis.py
+tests/test_auto_regions.py
+tests/test_grid_mapping.py
