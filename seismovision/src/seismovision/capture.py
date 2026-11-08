@@ -60,8 +60,10 @@ class PiCamera2Source(FrameSource):
 
     def read(self) -> tuple[bool, Optional[np.ndarray], float]:
         # Picamera2 RGB888 frames are converted to OpenCV's BGR convention.
-        rgb = self._camera.capture_array("main")
-        return True, cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), time.monotonic()
+        #rgb = self._camera.capture_array("main")
+        #return True, cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), time.monotonic()
+        frame = self._camera.capture_array("main")
+        return True,frame, time.monotonic()
 
     def close(self) -> None:
         self._camera.stop()
