@@ -20,9 +20,9 @@ It is not a building-safety certification system. Its only alert is **inspection
 
 The system intentionally uses configured regions instead of automatically selecting the largest moving object. In outdoor building footage that object is often a tree, vehicle, or shadow.
 
-## Pi 4 quick start
+## Pi 5 quick start
 
-Use 64-bit Raspberry Pi OS, a cooled Pi 4, a stable supply, and current `rpicam`/libcamera software. Install the Python packages in a virtual environment:
+Use 64-bit Raspberry Pi OS, the team's cooled Pi 5 (16 GB), a stable supply, and current `rpicam`/libcamera software. Install the Python packages in a virtual environment:
 
 ```bash
 sudo apt update
@@ -74,13 +74,13 @@ Keep the configuration and analysis modules unchanged. Replace only the source f
 python -m unittest discover -s tests -v
 ```
 
-## Interactive 4×2 building map
+## Automatic cardboard map
 
-`seismovision-grid` is a separate, implemented demo pipeline. At startup, the operator draws a rough building box and a second stable reference box. The program refines the building selection from its strongest edge contour, freezes that result, splits it into four rows by two columns, and tracks smaller inner boxes. Lost features are reacquired inside those fixed boxes without requiring another selection. Each cell receives an MEVM visualization, while frequency remains calculated from unamplified, camera-compensated optical flow. It draws tracker points, camera-compensated displacement arrows, and flags statistical frequency outliers as **anomalies**, not structural-safety verdicts. The right-hand dashboard shows eight FFT spectrograms: frequency on the vertical axis, time on the horizontal axis, and FFT amplitude as color.
+`seismovision-grid` automatically finds the brown upper and lower cardboard boxes in the controlled demo scene. It keeps the lower 4×2 green tracking grid and adds two upper-box cells. It selects a textured background region outside the stack as the camera-motion reference. Upper-cell displacement is measured relative to the lower two base cells, so shared table and camera motion is reduced. Frequency is calculated from unamplified optical-flow tracks; magnification is optional and disabled in the example configuration to leave processing time for tracking. The dashboard shows ten FFT spectrograms. Red cells mark statistical frequency outliers, **not** structural instability.
 
 ```bash
 cp grid_config.example.json grid_config.json
 python -m seismovision.grid_preview --config grid_config.json --camera picamera2
 ```
 
-`grid_config.json` exposes camera settings, FFT frequency bounds, FFT window/sample requirements, tracking-point threshold, camera-motion recalibration limits, and MEVM settings. Draw the boxes with the mouse, then press Enter after each selection. Press `r` to select and refine both boxes again; press `q` to quit. Keep the reference ROI on a stationary, textured object outside the cardboard model.
+`grid_config.json` exposes camera settings, FFT frequency bounds, FFT window/sample requirements, tracking-point threshold, camera-motion recalibration limits, and MEVM settings. Keep the entire stack and a textured, stationary room background visible. Press `r` to restart detection or `q` to quit. If the stack or reference is not detected, or the camera is blocked, the display says **MEASUREMENT UNRELIABLE** and reacquires before reporting new data. This scene-specific color and geometry detector has not been validated on other boxes or lighting. Test it on the Pi 5 with the actual camera footage before using the demo; no frequency difference or color is an entry-safety decision.

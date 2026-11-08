@@ -50,7 +50,7 @@ class MagnificationConfig:
 
 @dataclass(frozen=True)
 class GridConfig:
-    """Configuration for the manual-box grid preview."""
+    """Configuration for the cardboard grid preview."""
 
     camera: CameraConfig
     analysis: AnalysisConfig

@@ -9,6 +9,37 @@ HAS_OPENCV = importlib.util.find_spec("cv2") is not None
 
 @unittest.skipUnless(HAS_OPENCV, "OpenCV is required for grid mapper tests")
 class GridGeometryTests(unittest.TestCase):
+    def test_upper_cells_keep_existing_lower_grid(self):
+        from seismovision.config import AnalysisConfig
+        from seismovision.grid_mapping import BuildingGridMapper
+
+        mapper = BuildingGridMapper((260, 145, 120, 260), (10, 40, 180, 360), AnalysisConfig(), (235, 60, 170, 85))
+        self.assertEqual(len(mapper.cells), 8)
+        self.assertEqual(len(mapper.upper_cells), 2)
+        self.assertEqual(len(mapper.targets), 10)
+        self.assertEqual(mapper.targets[8].name, "upper_0")
+
+    def test_upper_motion_is_relative_to_base_and_lost_cell_clears_history(self):
+        from seismovision.config import AnalysisConfig
+        from seismovision.grid_mapping import BuildingGridMapper
+        from seismovision.tracking import TargetMotion
+
+        mapper = BuildingGridMapper((260, 145, 120, 260), (10, 40, 180, 360), AnalysisConfig(), (235, 60, 170, 85))
+        motions = {
+            target.name: TargetMotion(target.name, np.array([3.0 if target.name.startswith("upper_") else 1.0, 0.0]), 1.0, 20, np.empty((0, 2)))
+            for target in mapper.targets
+        }
+        frame = np.zeros((480, 640, 3), np.uint8)
+        with patch.object(mapper.tracker, "update", return_value=(np.zeros(2), motions)):
+            mapper.update(frame, 1.0)
+        self.assertAlmostEqual(mapper.positions["upper_0"][0], 2.0)
+        self.assertEqual(len(mapper.horizontal["cell_0"].samples), 1)
+        motions["cell_0"].confidence = 0.0
+        with patch.object(mapper.tracker, "update", return_value=(np.zeros(2), motions)):
+            _, states = mapper.update(frame, 2.0)
+        self.assertEqual(len(mapper.horizontal["cell_0"].samples), 0)
+        self.assertIsNone(states["cell_0"].frequency_hz)
+
     def test_creates_eight_inner_cells(self):
         from seismovision.grid_mapping import grid_cells
 

@@ -1,8 +1,8 @@
 # Implementation
 
-The Raspberry Pi prototype currently lives in [`../seismovision/`](../seismovision/). It includes a user-bounded 4 by 2 cardboard-building motion-map demo; its outputs are experimental measurements, not a building-entry decision or collapse prediction.
+The Raspberry Pi prototype currently lives in [`../seismovision/`](../seismovision/). The `optimized_algorithm` branch adds automatic cardboard localization to the interactive map, preserving the lower 4 by 2 grid and adding two upper-box cells. Its outputs are experimental measurements, not a building-entry decision or collapse prediction.
 
-Run and hardware notes are maintained in [`../seismovision/README.md`](../seismovision/README.md).
+Run and hardware notes are maintained in [`../seismovision/README.md`](../seismovision/README.md). Pi 5 performance and vibration accuracy require a camera recording and measured ground truth.
 
 Keep this handoff updated with:
 

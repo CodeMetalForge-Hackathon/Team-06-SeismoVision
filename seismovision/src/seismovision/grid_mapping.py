@@ -59,13 +59,16 @@ class GridCellState:
 
 
 class BuildingGridMapper:
-    """Tracks eight fixed inner regions after edge refinement establishes the building box."""
+    """Tracks the lower 4-by-2 map and optional upper response cells."""
 
-    def __init__(self, bbox: Rect, reference_roi: Rect, analysis: AnalysisConfig):
+    def __init__(self, bbox: Rect, reference_roi: Rect, analysis: AnalysisConfig, upper_bbox: Optional[Rect] = None):
         self.bbox = bbox
         self.analysis = analysis
         self.cells = grid_cells(bbox)
-        self.targets = tuple(TargetConfig(f"cell_{index}", roi) for index, roi in enumerate(self.cells))
+        self.upper_cells = grid_cells(upper_bbox, rows=1) if upper_bbox else []
+        self.targets = tuple(TargetConfig(f"cell_{index}", roi) for index, roi in enumerate(self.cells)) + tuple(
+            TargetConfig(f"upper_{index}", roi) for index, roi in enumerate(self.upper_cells)
+        )
         self.tracker = MotionTracker(reference_roi, self.targets, analysis.minimum_track_points)
         self.horizontal = {target.name: RollingVibrationAnalyzer(analysis) for target in self.targets}
         self.vertical = {target.name: RollingVibrationAnalyzer(analysis) for target in self.targets}
@@ -94,6 +97,17 @@ class BuildingGridMapper:
 
     def update(self, frame: np.ndarray, timestamp: float) -> tuple[float, Dict[str, GridCellState]]:
         reference_motion, motions = self.tracker.update(frame)
+        camera_motion = float(np.linalg.norm(reference_motion))
+        if camera_motion > self.analysis.max_camera_motion_px:
+            for motion in motions.values():
+                motion.confidence = 0.0
+        base = [motions[f"cell_{index}"].relative_displacement for index in (6, 7) if motions[f"cell_{index}"].confidence > 0]
+        for target in self.targets:
+            if target.name.startswith("upper_"):
+                if base:
+                    motions[target.name].relative_displacement -= np.median(base, axis=0)
+                else:
+                    motions[target.name].confidence = 0.0
         states: Dict[str, GridCellState] = {}
         frequencies = []
         for target in self.targets:
@@ -103,6 +117,17 @@ class BuildingGridMapper:
                 position += motion.relative_displacement
                 self.horizontal[target.name].add(timestamp, float(position[0]), motion.confidence)
                 self.vertical[target.name].add(timestamp, float(position[1]), motion.confidence)
+            else:
+                self.horizontal[target.name].samples.clear()
+                self.vertical[target.name].samples.clear()
+                self.smoothers[target.name].reset()
+                position.fill(0.0)
+                self.amplitude_history[target.name].clear()
+                self.frequency_history[target.name].clear()
+                self.spectrogram_history[target.name].clear()
+                self.spectra[target.name] = (np.empty(0), np.empty(0))
+                states[target.name] = GridCellState(target.name, target.roi, motion, position.copy(), 0.0, None, None)
+                continue
             axis, metrics = choose_stronger_axis(self.horizontal[target.name].metrics(), self.vertical[target.name].metrics())
             selected = self.horizontal[target.name] if axis == "horizontal" else self.vertical[target.name]
             self.spectra[target.name] = selected.spectrum()
@@ -126,4 +151,4 @@ class BuildingGridMapper:
             for state in states.values():
                 if state.frequency_hz is not None:
                     state.anomaly_score = abs(state.frequency_hz - median) / scale
-        return float(np.linalg.norm(reference_motion)), states
+        return camera_motion, states
