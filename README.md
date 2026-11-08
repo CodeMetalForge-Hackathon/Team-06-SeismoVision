@@ -4,7 +4,19 @@ An experimental, camera-first structural motion indicator for search and rescue 
 
 After an earthquake or other damaging event, responders may need to work near a structure whose condition is uncertain. The proposed field unit observes motion from a distance and presents measurements that could help responders notice a possible structural hazard. It is designed around edge processing when normal infrastructure is unavailable.
 
-**Status:** the project plan and demo scenarios are documented here. A teammate is developing the Raspberry Pi implementation separately and will push it to this repository. Nothing in this repository currently establishes a building-entry decision or predicts collapse.
+**Status:** the project plan and demo scenarios are documented here, and experimental Raspberry Pi implementations are available on the [implementation branches](#implementation-branches). The [documentation branch](https://github.com/CodeMetalForge-Hackathon/Team-6/tree/documentation) includes demo photos and a monitor recording. Nothing in this repository currently establishes a building-entry decision or predicts collapse.
+
+## Presentation and field-unit concept
+
+[**Download the presentation (PowerPoint, 8 slides)**](docs/presentation/earthquake-stability-pitch.pptx?raw=true)
+
+The team's original pitch deck covers the problem, proposed field system, processing pipeline, and next steps. Its performance and building-entry claims remain unvalidated; the implementation notes and interpretation below describe the current prototype's limits.
+
+<p align="center">
+  <img src="docs/presentation/field-unit-concept.png" alt="Field-unit concept showing a tripod-mounted Pi camera, Raspberry Pi, power supply, and display with highlighted regions and a motion graph" width="460">
+</p>
+
+*Proposed portable field-unit layout: Pi camera, Raspberry Pi, power supply, and display. This concept image illustrates the intended setup; recorded demo media are linked below.*
 
 ## Start here
 
@@ -16,6 +28,16 @@ After an earthquake or other damaging event, responders may need to work near a 
 - [Brainstorming sources](docs/brainstorm/README.md): live Google Doc and dated backup.
 - [Team collaboration](CONTRIBUTING.md): GitHub and Codex setup for all four teammates.
 - [Code folder](code/README.md): reserved for the implementation owner.
+
+## Implementation branches
+
+| Branch | What to explore |
+| --- | --- |
+| [`optimized_algorithm`](https://github.com/CodeMetalForge-Hackathon/Team-6/tree/optimized_algorithm/seismovision) | Automatic detection of the brown cardboard demo stack, eight lower tracking cells plus two upper cells, a textured background reference for camera-motion compensation, and ten FFT spectrograms. |
+| [`unstableDetectorFullMap`](https://github.com/CodeMetalForge-Hackathon/Team-6/tree/unstableDetectorFullMap/seismovision) | Interactive selection of the target and reference regions, an eight-cell motion map, displacement arrows, FFT spectrograms, and tracking-confidence indicators. |
+| [`documentation`](https://github.com/CodeMetalForge-Hackathon/Team-6/tree/documentation) | Project documentation, the experimental SeismoVision package, and [November 8 demo photos and monitor recording](https://github.com/CodeMetalForge-Hackathon/Team-6/tree/documentation/docs/demo/media). |
+
+The motion maps use reference-compensated optical flow and estimate frequency from unamplified displacement. The automatic detector is specific to the cardboard demo scene. The grid display flags response anomalies and tracking quality; achieved frame rate and measurement accuracy still require validation. Each implementation branch includes its own setup instructions and example configuration.
 
 ## Planned live demonstration
 
