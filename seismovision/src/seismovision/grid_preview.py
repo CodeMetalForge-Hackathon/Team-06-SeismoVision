@@ -8,14 +8,17 @@ import numpy as np
 
 from .capture import make_source
 from .config import AnalysisConfig, CameraConfig, Rect
-from .grid_mapping import BuildingGridMapper, GridCellState, YoloBuildingDetector
+from .grid_mapping import BuildingGridMapper, GridCellState, refine_building_box
 
 
-def _rect(value: str) -> Rect:
-    parts = tuple(int(part.strip()) for part in value.split(","))
-    if len(parts) != 4 or parts[2] <= 0 or parts[3] <= 0:
-        raise argparse.ArgumentTypeError("ROI must be x,y,width,height")
-    return parts  # type: ignore[return-value]
+def _select_regions(frame: np.ndarray) -> tuple[Rect, Rect]:
+    seed = tuple(int(value) for value in cv2.selectROI("Draw rough building box, then Enter", frame, showCrosshair=True, fromCenter=False))
+    if seed[2] <= 0 or seed[3] <= 0:
+        raise RuntimeError("A building box is required")
+    reference = tuple(int(value) for value in cv2.selectROI("Draw stable reference box, then Enter", frame, showCrosshair=True, fromCenter=False))
+    if reference[2] <= 0 or reference[3] <= 0:
+        raise RuntimeError("A stable reference box is required")
+    return refine_building_box(frame, seed), reference  # type: ignore[return-value]
 
 
 def _heatmap(panel: np.ndarray, top: int, title: str, states: Dict[str, GridCellState], value: str, maximum: float) -> None:
@@ -67,21 +70,16 @@ def _draw_grid(frame: np.ndarray, mapper: BuildingGridMapper, states: Dict[str, 
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="YOLO-bounded 4x2 cardboard-building motion map")
-    parser.add_argument("--model", required=True, help="Custom YOLO model with a cardboard-building class")
-    parser.add_argument("--class-name", default="cardboard_building")
-    parser.add_argument("--reference-roi", required=True, type=_rect, help="Stationary x,y,width,height reference")
+    parser = argparse.ArgumentParser(description="User-bounded 4x2 cardboard-building motion map")
     parser.add_argument("--camera", choices=("picamera2", "usb"), default="picamera2")
     parser.add_argument("--video")
     parser.add_argument("--width", type=int, default=640)
     parser.add_argument("--height", type=int, default=480)
     parser.add_argument("--fps", type=int, default=30)
-    parser.add_argument("--confidence", type=float, default=0.7)
     args = parser.parse_args()
 
     camera = CameraConfig(width=args.width, height=args.height, fps=args.fps)
     source = make_source(camera, args.camera, args.video)
-    detector = YoloBuildingDetector(args.model, args.class_name, args.confidence)
     mapper = None
     moved, settled = False, 0
     try:
@@ -90,13 +88,12 @@ def main() -> None:
             if not ok or frame is None:
                 break
             if mapper is None:
-                bbox = detector.detect(frame)
                 preview = frame.copy()
-                cv2.putText(preview, "Searching for cardboard_building YOLO box...", (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 2)
-                if bbox is not None:
-                    mapper = BuildingGridMapper(bbox, args.reference_roi, AnalysisConfig())
-                    mapper.tracker.validate(frame)
+                cv2.putText(preview, "Draw building and stable-reference boxes in the selection windows", (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (0, 255, 255), 2)
                 cv2.imshow("SeismoVision grid map", preview)
+                building_box, reference_box = _select_regions(frame)
+                mapper = BuildingGridMapper(building_box, reference_box, AnalysisConfig())
+                mapper.tracker.validate(frame)
             else:
                 camera_motion, states = mapper.update(frame, timestamp)
                 if camera_motion > mapper.analysis.max_camera_motion_px:

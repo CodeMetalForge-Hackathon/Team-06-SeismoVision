@@ -1,4 +1,4 @@
-"""YOLO-box-initialized 4-by-2 optical-flow map for the cardboard demo."""
+"""User-box-initialized 4-by-2 optical-flow map for the cardboard demo."""
 
 from collections import deque
 from dataclasses import dataclass
@@ -26,29 +26,25 @@ def grid_cells(bbox: Rect, rows: int = 4, columns: int = 2, inset_fraction: floa
     return cells
 
 
-class YoloBuildingDetector:
-    """Optional Ultralytics adapter. The model must have a dedicated cardboard-building class."""
-
-    def __init__(self, model_path: str, class_name: str, confidence: float):
-        try:
-            from ultralytics import YOLO  # type: ignore
-        except ImportError as exc:
-            raise RuntimeError("Install the model runtime with: pip install ultralytics") from exc
-        self.model = YOLO(model_path)
-        self.class_name = class_name
-        self.confidence = confidence
-
-    def detect(self, frame: np.ndarray) -> Optional[Rect]:
-        result = self.model(frame, conf=self.confidence, verbose=False)[0]
-        names = result.names
-        candidates = []
-        for box in result.boxes:
-            label = names[int(box.cls[0])]
-            if label != self.class_name:
-                continue
-            x1, y1, x2, y2 = (int(value) for value in box.xyxy[0].tolist())
-            candidates.append((x1, y1, x2 - x1, y2 - y1))
-        return max(candidates, key=lambda rect: rect[2] * rect[3]) if candidates else None
+def refine_building_box(frame: np.ndarray, seed: Rect) -> Rect:
+    """Refines a user-drawn building box to its strongest enclosing edge contour."""
+    x, y, width, height = seed
+    crop = frame[y:y + height, x:x + width]
+    if crop.size == 0:
+        return seed
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    median = float(np.median(gray))
+    edges = cv2.Canny(gray, max(0, int(0.66 * median)), min(255, int(1.33 * median)))
+    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return seed
+    contour = max(contours, key=cv2.contourArea)
+    left, top, refined_width, refined_height = cv2.boundingRect(contour)
+    if refined_width * refined_height < width * height * 0.2:
+        return seed
+    return x + left, y + top, refined_width, refined_height
 
 
 @dataclass
@@ -63,7 +59,7 @@ class GridCellState:
 
 
 class BuildingGridMapper:
-    """Tracks eight fixed inner regions after a YOLO detector establishes the building box."""
+    """Tracks eight fixed inner regions after edge refinement establishes the building box."""
 
     def __init__(self, bbox: Rect, reference_roi: Rect, analysis: AnalysisConfig):
         self.bbox = bbox

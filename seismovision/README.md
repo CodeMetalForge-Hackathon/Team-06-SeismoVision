@@ -74,15 +74,12 @@ Keep the configuration and analysis modules unchanged. Replace only the source f
 python -m unittest discover -s tests -v
 ```
 
-## YOLO 4×2 building map
+## Interactive 4×2 building map
 
-`seismovision-grid` is a separate, implemented demo pipeline. It gets one `cardboard_building` bounding box from a custom YOLO model, freezes that box, splits it into four rows by two columns, and tracks smaller inner boxes. It draws tracker points and flags statistical frequency outliers as **anomalies**, not structural-safety verdicts. The right-hand dashboard shows cell frequency, low-pass motion magnitude, outlier score, and frequency history.
-
-It requires a trained model with a single dedicated cardboard-building class and the optional Ultralytics runtime; no model weights are included in this repository.
+`seismovision-grid` is a separate, implemented demo pipeline. At startup, the operator draws a rough building box and a second stable reference box. The program refines the building selection from its strongest edge contour, freezes that result, splits it into four rows by two columns, and tracks smaller inner boxes. It draws tracker points and flags statistical frequency outliers as **anomalies**, not structural-safety verdicts. The right-hand dashboard shows cell frequency, low-pass motion magnitude, outlier score, and frequency history.
 
 ```bash
-pip install ultralytics
-python -m seismovision.grid_preview --model /path/to/best.pt --class-name cardboard_building --reference-roi 20,40,160,160 --camera picamera2
+python -m seismovision.grid_preview --camera picamera2
 ```
 
-Press `r` to discard the current box and obtain a new YOLO box; press `q` to quit. Keep the reference ROI on a stationary, textured object outside the cardboard model.
+Draw the boxes with the mouse, then press Enter after each selection. Press `r` to select and refine both boxes again; press `q` to quit. Keep the reference ROI on a stationary, textured object outside the cardboard model.
