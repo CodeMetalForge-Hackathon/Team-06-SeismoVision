@@ -2,7 +2,7 @@
 
 from collections import deque
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
 import cv2
 import numpy as np
@@ -59,10 +59,11 @@ class GridCellState:
 
 
 class BuildingGridMapper:
-    """Tracks the lower 4-by-2 map and optional upper response cells."""
+    """Tracks the lower grid and upper response relative to the lower base."""
 
     def __init__(self, bbox: Rect, reference_roi: Rect, analysis: AnalysisConfig, upper_bbox: Optional[Rect] = None):
         self.bbox = bbox
+        self.upper_bbox = upper_bbox
         self.analysis = analysis
         self.cells = grid_cells(bbox)
         self.upper_cells = grid_cells(upper_bbox, rows=1) if upper_bbox else []
@@ -79,6 +80,7 @@ class BuildingGridMapper:
         self.spectra = {target.name: (np.empty(0), np.empty(0)) for target in self.targets}
         self.spectral_bins = np.linspace(analysis.min_frequency_hz, analysis.max_frequency_hz, 32)
         self.spectrogram_history = {target.name: deque(maxlen=90) for target in self.targets}
+        self.response_anomaly_score: Optional[float] = None
 
     def reset_measurement(self) -> None:
         self.tracker.reset()
@@ -94,6 +96,7 @@ class BuildingGridMapper:
         self.spectra = {target.name: (np.empty(0), np.empty(0)) for target in self.targets}
         for history in self.spectrogram_history.values():
             history.clear()
+        self.response_anomaly_score = None
 
     def update(self, frame: np.ndarray, timestamp: float) -> tuple[float, Dict[str, GridCellState]]:
         reference_motion, motions = self.tracker.update(frame)
@@ -109,7 +112,6 @@ class BuildingGridMapper:
                 else:
                     motions[target.name].confidence = 0.0
         states: Dict[str, GridCellState] = {}
-        frequencies = []
         for target in self.targets:
             motion = motions[target.name]
             position = self.positions[target.name]
@@ -132,23 +134,40 @@ class BuildingGridMapper:
             selected = self.horizontal[target.name] if axis == "horizontal" else self.vertical[target.name]
             self.spectra[target.name] = selected.spectrum()
             spectrum_frequencies, spectrum_powers = self.spectra[target.name]
-            if len(spectrum_frequencies):
+            history = self.spectrogram_history[target.name]
+            if len(spectrum_frequencies) and np.any(spectrum_powers > 0):
                 spectrum_column = np.interp(self.spectral_bins, spectrum_frequencies, spectrum_powers, left=0.0, right=0.0)
+            elif history:
+                spectrum_column = history[-1].copy()
             else:
                 spectrum_column = np.zeros_like(self.spectral_bins)
-            self.spectrogram_history[target.name].append(spectrum_column)
+            history.append(spectrum_column)
             smoothed = self.smoothers[target.name].update(timestamp, position)
             self.amplitude_history[target.name].append(smoothed.magnitude_px)
             self.frequency_history[target.name].append(metrics.dominant_hz)
-            if metrics.dominant_hz is not None:
-                frequencies.append(metrics.dominant_hz)
             states[target.name] = GridCellState(target.name, target.roi, motion, position.copy(), smoothed.magnitude_px, metrics.dominant_hz, None)
 
-        if len(frequencies) >= 3:
-            median = float(np.median(frequencies))
-            mad = float(np.median(np.abs(np.asarray(frequencies) - median)))
-            scale = max(0.02, 1.4826 * mad)
-            for state in states.values():
-                if state.frequency_hz is not None:
-                    state.anomaly_score = abs(state.frequency_hz - median) / scale
+        reliable = [state for state in states.values() if state.motion.confidence >= self.analysis.minimum_confidence]
+
+        def outlier_scores(values: list[GridCellState], value: str) -> Dict[str, float]:
+            numbers = np.asarray([getattr(state, value) for state in values], dtype=float)
+            if len(numbers) < 3:
+                return {}
+            median = float(np.median(numbers))
+            scale = max(0.02, 1.4826 * float(np.median(np.abs(numbers - median))))
+            return {state.name: abs(float(getattr(state, value)) - median) / scale for state in values}
+
+        frequency_scores = outlier_scores([state for state in reliable if state.frequency_hz is not None], "frequency_hz")
+        amplitude_scores = outlier_scores(reliable, "smoothed_magnitude")
+        combined_scores = []
+        for state in states.values():
+            components = []
+            if state.name in frequency_scores:
+                components.append(frequency_scores[state.name] / self.analysis.grid_frequency_outlier_limit)
+            if state.name in amplitude_scores:
+                components.append(amplitude_scores[state.name] / self.analysis.grid_amplitude_outlier_limit)
+            state.anomaly_score = max(components) if components else None
+            if state.anomaly_score is not None:
+                combined_scores.append(state.anomaly_score)
+        self.response_anomaly_score = max(combined_scores, default=None)
         return camera_motion, states

@@ -71,6 +71,8 @@ class AnalysisTests(unittest.TestCase):
         config = load_grid_config(Path(__file__).parents[1] / "grid_config.example.json")
         self.assertEqual(config.analysis.min_frequency_hz, 0.2)
         self.assertEqual(config.analysis.max_frequency_hz, 5.0)
+        self.assertEqual(config.analysis.grid_frequency_outlier_limit, 3.0)
+        self.assertEqual(config.analysis.grid_amplitude_outlier_limit, 3.0)
 
 
 if __name__ == "__main__":
