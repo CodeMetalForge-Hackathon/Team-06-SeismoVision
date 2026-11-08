@@ -30,9 +30,37 @@ def _select_roi(frame: np.ndarray, title: str) -> Optional[Rect]:
 
 
 def _confirm_regions(frame: np.ndarray, building: Rect, reference: Rect) -> tuple[Rect, Rect, list[Rect]]:
-    """Lets the operator inspect or replace regions before tracking starts."""
+    """Lets the operator edit regions directly on the reference frame."""
     cells = grid_cells(building)
+    editor = {"selected": None, "start": None, "draft": None, "replacement": None}
+
+    def mouse(event: int, x: int, y: int, _flags: int, _param: object) -> None:
+        if editor["selected"] is None:
+            return
+        if event == cv2.EVENT_LBUTTONDOWN:
+            editor["start"] = (x, y)
+        elif event == cv2.EVENT_MOUSEMOVE and editor["start"] is not None:
+            start_x, start_y = editor["start"]
+            editor["draft"] = (min(start_x, x), min(start_y, y), abs(x - start_x), abs(y - start_y))
+        elif event == cv2.EVENT_LBUTTONUP and editor["start"] is not None:
+            start_x, start_y = editor["start"]
+            editor["start"] = None
+            editor["draft"] = None
+            if abs(x - start_x) > 2 and abs(y - start_y) > 2:
+                editor["replacement"] = (min(start_x, x), min(start_y, y), abs(x - start_x), abs(y - start_y))
+
+    cv2.namedWindow("Confirm grid regions")
+    cv2.setMouseCallback("Confirm grid regions", mouse)
     while True:
+        replacement = editor["replacement"]
+        if replacement is not None:
+            if editor["selected"] == "building":
+                building, cells = replacement, grid_cells(replacement)
+            elif editor["selected"] == "reference":
+                reference = replacement
+            else:
+                cells[int(editor["selected"])] = replacement
+            editor["selected"] = editor["replacement"] = None
         preview = frame.copy()
         x, y, width, height = building
         cv2.rectangle(preview, (x, y), (x + width, y + height), (0, 255, 255), 2)
@@ -43,26 +71,25 @@ def _confirm_regions(frame: np.ndarray, building: Rect, reference: Rect) -> tupl
         for index, (x, y, width, height) in enumerate(cells):
             cv2.rectangle(preview, (x, y), (x + width, y + height), (0, 255, 0), 1)
             cv2.putText(preview, str(index), (x + 3, y + 16), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 0), 1)
-        cv2.putText(preview, "Enter: start | b: building | s: reference | 0-7: tracker box | q: quit", (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.43, (255, 255, 255), 1)
+        if editor["draft"] is not None:
+            x, y, width, height = editor["draft"]
+            cv2.rectangle(preview, (x, y), (x + width, y + height), (255, 255, 255), 2)
+        selected = editor["selected"]
+        message = "Enter: start | b/s/0-7: select box, then drag on this frame | q: quit"
+        if selected is not None:
+            message = f"Selected {selected}: drag its replacement box on this frame"
+        cv2.putText(preview, message, (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.43, (255, 255, 255), 1)
         cv2.imshow("Confirm grid regions", preview)
-        key = cv2.waitKey(0) & 0xFF
+        key = cv2.waitKey(20) & 0xFF
         if key in (10, 13):
             cv2.destroyWindow("Confirm grid regions")
             return building, reference, cells
         if key == ord("b"):
-            seed = _select_roi(frame, "Redraw building box, then Enter")
-            if seed is not None:
-                building = refine_building_box(frame, seed)
-                cells = grid_cells(building)
+            editor["selected"] = "building"
         elif key == ord("s"):
-            selected = _select_roi(frame, "Redraw stable reference box, then Enter")
-            if selected is not None:
-                reference = selected
+            editor["selected"] = "reference"
         elif ord("0") <= key <= ord("7"):
-            index = key - ord("0")
-            selected = _select_roi(frame, f"Redraw tracking box {index}, then Enter")
-            if selected is not None:
-                cells[index] = selected
+            editor["selected"] = key - ord("0")
         elif key == ord("q"):
             raise KeyboardInterrupt
 
@@ -91,7 +118,7 @@ def _draw_grid(frame: np.ndarray, mapper: BuildingGridMapper, states: Dict[str, 
     cv2.rectangle(output, (x, y), (x + width, y + height), (0, 255, 255), 2)
     for index, state in enumerate(states.values()):
         x, y, width, height = state.roi
-        anomaly = state.anomaly_score is not None and state.anomaly_score > 3.0
+        anomaly = state.anomaly_score is not None and state.anomaly_score >= 1.0
         color = (0, 0, 255) if anomaly else (0, 255, 0)
         cv2.rectangle(output, (x, y), (x + width, y + height), color, 2)
         for point in state.motion.points:
@@ -107,6 +134,14 @@ def _draw_grid(frame: np.ndarray, mapper: BuildingGridMapper, states: Dict[str, 
         label = f"{index} {hz}" + (" ANOMALY" if anomaly else "")
         cv2.putText(output, label, (x + 3, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.38, color, 1)
         cv2.putText(output, f"{state.position[0]:+.1f}, {state.position[1]:+.1f}px", (x + 3, y + height - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (0, 255, 255), 1)
+    score = mapper.response_anomaly_score
+    message = "response anomaly: collecting"
+    color = (0, 180, 255)
+    if score is not None:
+        message = f"response anomaly: {score:.2f}x sensitivity"
+        color = (0, 0, 255) if score >= 1.0 else (0, 220, 0)
+    cv2.putText(output, message, (10, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.48, color, 2)
+    cv2.putText(output, "screening only - not a stability prediction", (10, 42), cv2.FONT_HERSHEY_SIMPLEX, 0.36, (210, 210, 210), 1)
     return output
 
 
