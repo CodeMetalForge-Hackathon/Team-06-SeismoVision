@@ -49,27 +49,7 @@ def _draw_spectrogram(image: np.ndarray, bounds: tuple[int, int, int, int], titl
     cv2.putText(image, "past -> now", (right - 58, bottom - 3), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (230, 230, 230), 1)
 
 
-def _draw_fft_difference(image: np.ndarray, bounds: tuple[int, int, int, int], spectra: dict, roof_name: Optional[str], mid_name: Optional[str], min_frequency_hz: float, max_frequency_hz: float) -> None:
-    left, top, right, bottom = bounds
-    cv2.rectangle(image, (left, top), (right, bottom), (80, 80, 80), 1)
-    cv2.putText(image, "roof-mid normalized FFT difference", (left, top - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (230, 230, 230), 1)
-    if roof_name is None or mid_name is None:
-        return
-    roof_frequency, roof_power = spectra.get(roof_name, (np.empty(0), np.empty(0)))
-    mid_frequency, mid_power = spectra.get(mid_name, (np.empty(0), np.empty(0)))
-    if len(roof_frequency) < 2 or len(mid_frequency) < 2 or not np.any(roof_power) or not np.any(mid_power):
-        return
-    grid = np.linspace(min_frequency_hz, max_frequency_hz, 128)
-    roof_normalized = np.interp(grid, roof_frequency, roof_power, left=0.0, right=0.0) / np.max(roof_power)
-    mid_normalized = np.interp(grid, mid_frequency, mid_power, left=0.0, right=0.0) / np.max(mid_power)
-    difference = np.abs(roof_normalized - mid_normalized)
-    points = [(left + int((right - left) * index / (len(grid) - 1)), bottom - int((bottom - top) * value)) for index, value in enumerate(difference)]
-    cv2.polylines(image, [np.asarray(points, dtype=np.int32)], False, (0, 165, 255), 1)
-    cv2.putText(image, f"{min_frequency_hz:.1f}Hz", (left + 2, bottom - 3), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (230, 230, 230), 1)
-    cv2.putText(image, f"{max_frequency_hz:.1f}Hz", (right - 30, bottom - 3), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (230, 230, 230), 1)
-
-
-def _draw_dashboard(width: int, history: dict, delta_history: deque, spectrograms: dict, spectra: dict, min_frequency_hz: float, max_frequency_hz: float) -> np.ndarray:
+def _draw_dashboard(width: int, history: dict, delta_history: deque, spectrograms: dict, difference_spectrogram: deque, min_frequency_hz: float, max_frequency_hz: float) -> np.ndarray:
     panel_height = 420
     image = np.full((panel_height, width, 3), 20, dtype=np.uint8)
     colors = ((0, 255, 255), (255, 255, 0), (255, 0, 255))
@@ -90,8 +70,8 @@ def _draw_dashboard(width: int, history: dict, delta_history: deque, spectrogram
         if index == 2:
             break
         _draw_spectrogram(image, spectrogram_bounds(index), f"{name} spectrogram", values, min_frequency_hz, max_frequency_hz, intensity_limit)
-    roof_name = next((name for name in spectra if "roof" in name.lower()), None)
-    _draw_fft_difference(image, (6, 345, width - 6, panel_height - 18), spectra, roof_name, "mid_facade", min_frequency_hz, max_frequency_hz)
+    difference_limit = max((float(np.max(sample)) for sample in difference_spectrogram), default=0.0)
+    _draw_spectrogram(image, (6, 345, width - 6, panel_height - 18), "roof-mid FFT difference spectrogram", difference_spectrogram, min_frequency_hz, max_frequency_hz, difference_limit)
     return image
 
 
@@ -122,7 +102,6 @@ def _annotate(frame: np.ndarray, config: AppConfig, reports: dict, reference_mot
         cv2.arrowedLine(output, center, endpoint, color, 2, tipLength=0.25)
         cv2.putText(output, f"x {vector[0]:+.2f}, y {vector[1]:+.2f}px", (tx + 4, ty + th // 2 + 18), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
         cv2.putText(output, f"|d|LP {report['smoothed_magnitude']:.2f}px  rate {report['smoothed_rate']:+.2f}px/s", (tx + 4, ty + th // 2 + 34), cv2.FONT_HERSHEY_SIMPLEX, 0.35, color, 1)
-    cv2.putText(output, "SCREENING ONLY - NOT A SAFETY CERTIFICATION", (12, output.shape[0] - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
     cv2.putText(output, f"reference motion: {np.linalg.norm(reference_motion):.2f}px", (12, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2)
     cv2.putText(output, "R: recalibrate tracking", (12, 46), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 255, 255), 1)
     difference = "--" if inter_node.difference_hz is None else f"{inter_node.difference_hz:.2f}Hz"
@@ -145,6 +124,7 @@ def run(config: AppConfig, mode: str, video: Optional[str]) -> None:
     history = {target.name: deque(maxlen=config.camera.fps * 10) for target in config.targets}
     delta_history = deque(maxlen=config.camera.fps * 10)
     spectrograms = {target.name: deque(maxlen=120) for target in config.targets}
+    difference_spectrogram = deque(maxlen=120)
     last_spectrogram_timestamp: Optional[float] = None
     magnifier: Optional[RoiMotionMagnifier] = None
     camera_was_moved = False
@@ -164,6 +144,7 @@ def run(config: AppConfig, mode: str, video: Optional[str]) -> None:
         delta_history.clear()
         for values in spectrograms.values():
             values.clear()
+        difference_spectrogram.clear()
         last_spectrogram_timestamp = None
         if magnifier is not None:
             magnifier.reset()
@@ -219,6 +200,15 @@ def run(config: AppConfig, mode: str, video: Optional[str]) -> None:
                 for name, (frequencies, powers) in spectra.items():
                     intensity = np.interp(frequency_grid, frequencies, powers, left=0.0, right=0.0) if len(frequencies) else np.zeros(SPECTROGRAM_BINS)
                     spectrograms[name].append(np.log1p(intensity))
+                roof_name = next((name for name in spectra if "roof" in name.lower()), None)
+                roof_frequency, roof_power = spectra.get(roof_name, (np.empty(0), np.empty(0)))
+                mid_frequency, mid_power = spectra.get("mid_facade", (np.empty(0), np.empty(0)))
+                if len(roof_frequency) and len(mid_frequency) and np.any(roof_power) and np.any(mid_power):
+                    roof_intensity = np.interp(frequency_grid, roof_frequency, roof_power, left=0.0, right=0.0) / np.max(roof_power)
+                    mid_intensity = np.interp(frequency_grid, mid_frequency, mid_power, left=0.0, right=0.0) / np.max(mid_power)
+                    difference_spectrogram.append(np.abs(roof_intensity - mid_intensity))
+                else:
+                    difference_spectrogram.append(np.zeros(SPECTROGRAM_BINS))
                 last_spectrogram_timestamp = timestamp
             preview = _annotate(frame, config, reports, reference_motion, tracker.reference_points, inter_node)
             magnified = magnifier.apply(preview, timestamp) if magnifier else preview
@@ -247,7 +237,7 @@ def run(config: AppConfig, mode: str, video: Optional[str]) -> None:
             }
             writer.write(record, frame, magnified)
             if config.output.show_preview:
-                cv2.imshow("SeismoVision", cv2.vconcat((magnified, _draw_dashboard(frame.shape[1], history, delta_history, spectrograms, spectra, config.analysis.min_frequency_hz, config.analysis.max_frequency_hz))))
+                cv2.imshow("SeismoVision", cv2.vconcat((magnified, _draw_dashboard(frame.shape[1], history, delta_history, spectrograms, difference_spectrogram, config.analysis.min_frequency_hz, config.analysis.max_frequency_hz))))
                 key = cv2.waitKey(1) & 0xFF
                 if key == ord("r"):
                     recalibrate()
