@@ -1,5 +1,9 @@
 # Demo documentation
 
+## Presentation
+
+- [Team 6 presentation (PDF)](team-6-presentation-2026-11-08.pdf): 11-slide export of the live Google Slides deck, including the algorithm, demo photos, and future-reference slides.
+
 Compressed previews of the team-supplied demo media. Original HEIC and MOV files remain in Git history. Videos have no audio and use a lower resolution and frame rate for browser viewing.
 
 ## Photos
