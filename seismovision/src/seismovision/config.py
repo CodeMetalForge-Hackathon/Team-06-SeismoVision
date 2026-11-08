@@ -33,6 +33,7 @@ class AnalysisConfig:
     max_frequency_hz: float = 5.0
     minimum_track_points: int = 6
     max_camera_motion_px: float = 1.5
+    camera_settle_frames: int = 15
     minimum_confidence: float = 0.65
 
 
@@ -92,6 +93,8 @@ def load_config(path: Union[str, Path]) -> AppConfig:
     analysis = AnalysisConfig(**raw.get("analysis", {}))
     if analysis.min_frequency_hz <= 0 or analysis.max_frequency_hz <= analysis.min_frequency_hz:
         raise ValueError("analysis frequency limits are invalid")
+    if analysis.camera_settle_frames < 1:
+        raise ValueError("analysis.camera_settle_frames must be positive")
     magnification = MagnificationConfig(**raw.get("magnification", {}))
     if magnification.enabled and magnification.target not in {t.name for t in targets}:
         raise ValueError("magnification.target must match a configured target")

@@ -42,17 +42,21 @@ def _draw_history_graph(image: np.ndarray, history: dict, max_frequency_hz: floa
         cv2.putText(image, f"0-{limit:.1f}", (graph_left, graph_bottom + 13), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (190, 190, 190), 1)
 
 
-def _annotate(frame: np.ndarray, config: AppConfig, reports: dict, reference_motion: np.ndarray, history: dict) -> np.ndarray:
+def _annotate(frame: np.ndarray, config: AppConfig, reports: dict, reference_motion: np.ndarray, history: dict, reference_points: np.ndarray) -> np.ndarray:
     output = frame.copy()
     x, y, w, h = config.reference_roi
     cv2.rectangle(output, (x, y), (x + w, y + h), (255, 180, 0), 2)
     cv2.putText(output, "STATIC REFERENCE", (x, max(18, y - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 180, 0), 1)
+    for point in reference_points:
+        cv2.circle(output, tuple(point.astype(int)), 3, (255, 180, 0), cv2.FILLED)
     for target in config.targets:
         report = reports[target.name]
         state = report["decision"].state
         color = (0, 180, 0) if state == "NORMAL_RELATIVE_TO_BASELINE" else (0, 180, 255) if state == "NO_RESULT" else (0, 0, 255)
         tx, ty, tw, th = target.roi
         cv2.rectangle(output, (tx, ty), (tx + tw, ty + th), color, 2)
+        for point in report["motion"].points:
+            cv2.circle(output, tuple(point.astype(int)), 3, color, cv2.FILLED)
         metric = report["metrics"]
         hz = "--" if metric.dominant_hz is None else f"{metric.dominant_hz:.2f}Hz"
         label = f"{target.name}: {state} {hz}"
@@ -67,6 +71,7 @@ def _annotate(frame: np.ndarray, config: AppConfig, reports: dict, reference_mot
     _draw_history_graph(output, history, config.analysis.max_frequency_hz)
     cv2.putText(output, "SCREENING ONLY - NOT A SAFETY CERTIFICATION", (12, output.shape[0] - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
     cv2.putText(output, f"reference motion: {np.linalg.norm(reference_motion):.2f}px", (12, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2)
+    cv2.putText(output, "R: recalibrate tracking", (12, 46), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 255, 255), 1)
     return output
 
 
@@ -82,6 +87,19 @@ def run(config: AppConfig, mode: str, video: Optional[str]) -> None:
     cumulative_displacement = {target.name: np.zeros(2, dtype=float) for target in config.targets}
     history = {target.name: deque(maxlen=config.camera.fps * 10) for target in config.targets}
     magnifier: Optional[RoiMotionMagnifier] = None
+    camera_was_moved = False
+    settled_frames = 0
+
+    def recalibrate() -> None:
+        tracker.reset()
+        for analyzer in (*horizontal_analyzers.values(), *vertical_analyzers.values()):
+            analyzer.samples.clear()
+        for position in cumulative_displacement.values():
+            position.fill(0.0)
+        for values in history.values():
+            values.clear()
+        if magnifier is not None:
+            magnifier.reset()
     try:
         while True:
             ok, frame, timestamp = source.read()
@@ -97,6 +115,14 @@ def run(config: AppConfig, mode: str, video: Optional[str]) -> None:
             reference_motion, targets = tracker.update(frame)
             reports = {}
             camera_motion = float(np.linalg.norm(reference_motion))
+            if camera_motion > config.analysis.max_camera_motion_px:
+                camera_was_moved, settled_frames = True, 0
+            elif camera_was_moved:
+                settled_frames += 1
+                if settled_frames >= config.analysis.camera_settle_frames:
+                    recalibrate()
+                    camera_was_moved, settled_frames = False, 0
+                    continue
             for target in config.targets:
                 movement = targets[target.name]
                 # Frequency is calculated on both image axes and reported from the stronger one.
@@ -107,7 +133,7 @@ def run(config: AppConfig, mode: str, video: Optional[str]) -> None:
                 axis, metrics = choose_stronger_axis(horizontal_analyzers[target.name].metrics(), vertical_analyzers[target.name].metrics())
                 history[target.name].append((float(np.linalg.norm(position)), metrics.dominant_hz))
                 reports[target.name] = {"metrics": metrics, "axis": axis, "decision": evaluate(target, metrics, camera_motion, config.analysis), "motion": movement, "position": position.copy()}
-            preview = _annotate(frame, config, reports, reference_motion, history)
+            preview = _annotate(frame, config, reports, reference_motion, history, tracker.reference_points)
             magnified = magnifier.apply(preview, timestamp) if magnifier else preview
             record = {
                 "timestamp_monotonic": timestamp,
@@ -132,7 +158,10 @@ def run(config: AppConfig, mode: str, video: Optional[str]) -> None:
             writer.write(record, frame, magnified)
             if config.output.show_preview:
                 cv2.imshow("SeismoVision", magnified)
-                if cv2.waitKey(1) & 0xFF == ord("q"):
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord("r"):
+                    recalibrate()
+                elif key == ord("q"):
                     break
     finally:
         source.close()

@@ -8,6 +8,7 @@ It is not a building-safety certification system. Its only alert is **inspection
 
 - Pi Camera / USB / video-file capture behind a portable `FrameSource` interface.
 - Fixed reference-region tracking to reject apparent motion from camera movement.
+- Automatic feature reacquisition after camera relocation, soft-shadow normalization, and visible tracking points.
 - Multiple building target regions tracked with Lucas-Kanade optical flow.
 - Rolling, timestamp-aware frequency and peak-displacement estimates.
 - Centered X/Y displacement arrows and compact histories of displacement magnitude and dominant frequency.
@@ -57,6 +58,8 @@ Press `q` to stop when the preview is enabled.
 ## Output interpretation
 
 `NO_RESULT` means the data are not trustworthy (for example: camera movement, insufficient tracked points, or not enough samples). `NORMAL_RELATIVE_TO_BASELINE` means no configured anomaly was observed; it does **not** mean safe. `INSPECTION_RECOMMENDED` means the configured signal limits were exceeded with acceptable data quality.
+
+If the camera is moved, the app waits for `camera_settle_frames` stable frames and then automatically reacquires all features, clears displacement/frequency histories, and starts a new measurement baseline. Press `r` in the local preview to do this manually. Dots show the active optical-flow features: cyan dots are the stationary reference and target dots match their status-box color.
 
 The app writes a timestamped evidence folder containing `measurements.jsonl`, the effective configuration, and—when enabled—raw and MEVM-view video. Do not use the magnified video as a quantitative measurement; use the logged unamplified displacement signal.
 

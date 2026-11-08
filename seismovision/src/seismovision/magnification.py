@@ -66,3 +66,8 @@ class RoiMotionMagnifier:
         magnified = np.clip(self._collapse(amplified) * 255.0, 0, 255).astype(np.uint8)
         output[y : y + h, x : x + w] = cv2.cvtColor(magnified, cv2.COLOR_GRAY2BGR)
         return output
+
+    def reset(self) -> None:
+        self._low = []
+        self._high = []
+        self._last_timestamp = None

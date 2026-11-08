@@ -26,6 +26,7 @@ class FlowResult:
     displacement: np.ndarray
     point_count: int
     confidence: float
+    points: np.ndarray
 
 
 class RegionFlow:
@@ -48,12 +49,19 @@ class RegionFlow:
             points[:, 0, 1] += y
         return points
 
+    def reset(self) -> None:
+        self._points = None
+        self._previous = None
+
+    def _visible_points(self) -> np.ndarray:
+        return np.empty((0, 2), dtype=np.float32) if self._points is None else self._points.reshape(-1, 2)
+
     def update(self, gray: np.ndarray) -> FlowResult:
         if self._previous is None or self._points is None or len(self._points) < self.min_points:
             self._previous = gray
             self._points = self._detect(gray)
             count = 0 if self._points is None else len(self._points)
-            return FlowResult(np.zeros(2), count, 0.0)
+            return FlowResult(np.zeros(2), count, 0.0, self._visible_points())
 
         new_points, status, error = cv2.calcOpticalFlowPyrLK(
             self._previous, gray, self._points, None,
@@ -69,14 +77,14 @@ class RegionFlow:
         self._points = new.reshape(-1, 1, 2) if len(new) else self._detect(gray)
         count = len(new)
         if count == 0:
-            return FlowResult(np.zeros(2), 0, 0.0)
+            return FlowResult(np.zeros(2), 0, 0.0, self._visible_points())
         vectors = (new - old).reshape(-1, 2)
         displacement = np.median(vectors, axis=0)
         # A robust spread measure makes independently moving foliage reduce confidence.
         median_abs_deviation = np.median(np.linalg.norm(vectors - displacement, axis=1))
         count_confidence = min(1.0, count / float(self.min_points * 3))
         spread_confidence = float(np.exp(-median_abs_deviation / 1.5))
-        return FlowResult(displacement, count, count_confidence * spread_confidence)
+        return FlowResult(displacement, count, count_confidence * spread_confidence, self._visible_points())
 
 
 @dataclass
@@ -85,6 +93,7 @@ class TargetMotion:
     relative_displacement: np.ndarray
     confidence: float
     point_count: int
+    points: np.ndarray
 
 
 class MotionTracker:
@@ -96,6 +105,16 @@ class MotionTracker:
             target.name: RegionFlow(target.roi, min_points) for target in targets
         }
         self._target_configs = {target.name: target for target in targets}
+        self.reference_points = np.empty((0, 2), dtype=np.float32)
+
+        # shortcut: illumination normalization handles soft shadows, not hard occlusions; use a stable reference target.
+        self._clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+
+    def reset(self) -> None:
+        self.reference.reset()
+        for tracker in self.targets.values():
+            tracker.reset()
+        self.reference_points = np.empty((0, 2), dtype=np.float32)
 
     def validate(self, frame: np.ndarray) -> None:
         validate_roi(frame, self.reference.roi, "reference")
@@ -104,7 +123,10 @@ class MotionTracker:
 
     def update(self, frame: np.ndarray) -> tuple[np.ndarray, Dict[str, TargetMotion]]:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        illumination = cv2.GaussianBlur(gray, (0, 0), 15)
+        gray = self._clahe.apply(cv2.divide(gray, illumination, scale=128))
         ref = self.reference.update(gray)
+        self.reference_points = ref.points
         output: Dict[str, TargetMotion] = {}
         for name, tracker in self.targets.items():
             target = tracker.update(gray)
@@ -113,5 +135,6 @@ class MotionTracker:
                 relative_displacement=target.displacement - ref.displacement,
                 confidence=min(target.confidence, ref.confidence),
                 point_count=min(target.point_count, ref.point_count),
+                points=target.points,
             )
         return ref.displacement, output
