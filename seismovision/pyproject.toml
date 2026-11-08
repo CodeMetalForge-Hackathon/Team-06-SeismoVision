@@ -11,6 +11,7 @@ dependencies = ["numpy>=1.21", "opencv-python>=4.5"]
 
 [project.scripts]
 seismovision = "seismovision.app:main"
+seismovision-grid = "seismovision.grid_preview:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
