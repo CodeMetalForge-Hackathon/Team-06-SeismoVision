@@ -145,6 +145,28 @@ def _draw_grid(frame: np.ndarray, mapper: BuildingGridMapper, states: Dict[str, 
     return output
 
 
+def _draw_status(width: int, mapper: BuildingGridMapper, states: Dict[str, GridCellState]) -> np.ndarray:
+    """Shows a screening result and data quality without claiming structural safety."""
+    panel = np.full((86, width, 3), 18, dtype=np.uint8)
+    confidences = [state.motion.confidence for state in states.values()]
+    confidence = float(np.mean(confidences)) if confidences else 0.0
+    reliable = sum(value >= mapper.analysis.minimum_confidence for value in confidences)
+    score = mapper.response_anomaly_score
+    if reliable < 3:
+        headline, color = "STABILITY SCREEN: MEASUREMENT UNRELIABLE", (0, 180, 255)
+    elif score is None:
+        headline, color = "STABILITY SCREEN: COLLECTING RESPONSE DATA", (0, 180, 255)
+    elif score >= 1.0:
+        headline, color = "STABILITY SCREEN: RESPONSE ANOMALY OBSERVED", (0, 0, 255)
+    else:
+        headline, color = "STABILITY SCREEN: NO RESPONSE ANOMALY CURRENTLY", (0, 220, 0)
+    cv2.putText(panel, headline, (12, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.62, color, 2)
+    anomaly = "--" if score is None else f"{score:.2f}x configured sensitivity"
+    cv2.putText(panel, f"Measurement confidence: {confidence * 100:.0f}% ({reliable}/8 reliable cells) | response anomaly: {anomaly}", (12, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (235, 235, 235), 1)
+    cv2.putText(panel, "Tracking confidence is not a probability that the building is stable or unstable.", (12, 76), cv2.FONT_HERSHEY_SIMPLEX, 0.36, (190, 190, 190), 1)
+    return panel
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="User-bounded 4x2 cardboard-building motion map")
     parser.add_argument("--camera", choices=("picamera2", "usb"), default="picamera2")
@@ -202,7 +224,8 @@ def main() -> None:
                 for index, history in enumerate(mapper.spectrogram_history.values()):
                     row, column = divmod(index, 2)
                     _spectrogram(right, (column * graph_width, row * graph_height, (column + 1) * graph_width - 2, (row + 1) * graph_height - 2), index, history, mapper.analysis.max_frequency_hz)
-                cv2.imshow("SeismoVision grid map", cv2.hconcat((left, right)))
+                dashboard = cv2.hconcat((left, right))
+                cv2.imshow("SeismoVision grid map", cv2.vconcat((dashboard, _draw_status(dashboard.shape[1], mapper, states))))
             key = cv2.waitKey(1) & 0xFF
             if key == ord("r"):
                 mapper, moved, settled = None, False, 0

@@ -110,11 +110,14 @@ class BuildingGridMapper:
             selected = self.horizontal[target.name] if axis == "horizontal" else self.vertical[target.name]
             self.spectra[target.name] = selected.spectrum()
             spectrum_frequencies, spectrum_powers = self.spectra[target.name]
-            if len(spectrum_frequencies):
+            history = self.spectrogram_history[target.name]
+            if len(spectrum_frequencies) and np.any(spectrum_powers > 0):
                 spectrum_column = np.interp(self.spectral_bins, spectrum_frequencies, spectrum_powers, left=0.0, right=0.0)
+            elif history:
+                spectrum_column = history[-1].copy()
             else:
                 spectrum_column = np.zeros_like(self.spectral_bins)
-            self.spectrogram_history[target.name].append(spectrum_column)
+            history.append(spectrum_column)
             smoothed = self.smoothers[target.name].update(timestamp, position)
             self.amplitude_history[target.name].append(smoothed.magnitude_px)
             self.frequency_history[target.name].append(metrics.dominant_hz)
