@@ -2,25 +2,69 @@
 
 import argparse
 from dataclasses import replace
-from typing import Dict
+from typing import Dict, Optional
 
 import cv2
 import numpy as np
 
 from .capture import make_source
 from .config import AnalysisConfig, CameraConfig, MagnificationConfig, Rect, load_grid_config
-from .grid_mapping import BuildingGridMapper, GridCellState, refine_building_box
+from .grid_mapping import BuildingGridMapper, GridCellState, grid_cells, refine_building_box
 from .magnification import RoiMotionMagnifier
 
 
 def _select_regions(frame: np.ndarray) -> tuple[Rect, Rect]:
-    seed = tuple(int(value) for value in cv2.selectROI("Draw rough building box, then Enter", frame, showCrosshair=True, fromCenter=False))
-    if seed[2] <= 0 or seed[3] <= 0:
+    seed = _select_roi(frame, "Draw rough building box, then Enter")
+    if seed is None:
         raise RuntimeError("A building box is required")
-    reference = tuple(int(value) for value in cv2.selectROI("Draw stable reference box, then Enter", frame, showCrosshair=True, fromCenter=False))
-    if reference[2] <= 0 or reference[3] <= 0:
+    reference = _select_roi(frame, "Draw stable reference box, then Enter")
+    if reference is None:
         raise RuntimeError("A stable reference box is required")
-    return refine_building_box(frame, seed), reference  # type: ignore[return-value]
+    return refine_building_box(frame, seed), reference
+
+
+def _select_roi(frame: np.ndarray, title: str) -> Optional[Rect]:
+    roi = tuple(int(value) for value in cv2.selectROI(title, frame, showCrosshair=True, fromCenter=False))
+    cv2.destroyWindow(title)
+    return roi if roi[2] > 0 and roi[3] > 0 else None  # type: ignore[return-value]
+
+
+def _confirm_regions(frame: np.ndarray, building: Rect, reference: Rect) -> tuple[Rect, Rect, list[Rect]]:
+    """Lets the operator inspect or replace regions before tracking starts."""
+    cells = grid_cells(building)
+    while True:
+        preview = frame.copy()
+        x, y, width, height = building
+        cv2.rectangle(preview, (x, y), (x + width, y + height), (0, 255, 255), 2)
+        cv2.putText(preview, "building [b]", (x + 3, y + 16), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1)
+        x, y, width, height = reference
+        cv2.rectangle(preview, (x, y), (x + width, y + height), (255, 255, 0), 2)
+        cv2.putText(preview, "reference [s]", (x + 3, y + 16), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 0), 1)
+        for index, (x, y, width, height) in enumerate(cells):
+            cv2.rectangle(preview, (x, y), (x + width, y + height), (0, 255, 0), 1)
+            cv2.putText(preview, str(index), (x + 3, y + 16), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 0), 1)
+        cv2.putText(preview, "Enter: start | b: building | s: reference | 0-7: tracker box | q: quit", (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.43, (255, 255, 255), 1)
+        cv2.imshow("Confirm grid regions", preview)
+        key = cv2.waitKey(0) & 0xFF
+        if key in (10, 13):
+            cv2.destroyWindow("Confirm grid regions")
+            return building, reference, cells
+        if key == ord("b"):
+            seed = _select_roi(frame, "Redraw building box, then Enter")
+            if seed is not None:
+                building = refine_building_box(frame, seed)
+                cells = grid_cells(building)
+        elif key == ord("s"):
+            selected = _select_roi(frame, "Redraw stable reference box, then Enter")
+            if selected is not None:
+                reference = selected
+        elif ord("0") <= key <= ord("7"):
+            index = key - ord("0")
+            selected = _select_roi(frame, f"Redraw tracking box {index}, then Enter")
+            if selected is not None:
+                cells[index] = selected
+        elif key == ord("q"):
+            raise KeyboardInterrupt
 
 
 def _spectrogram(panel: np.ndarray, bounds: tuple[int, int, int, int], index: int, history: object, max_frequency: float) -> None:
@@ -95,7 +139,8 @@ def main() -> None:
                 cv2.putText(preview, "Draw building and stable-reference boxes in the selection windows", (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (0, 255, 255), 2)
                 cv2.imshow("SeismoVision grid map", preview)
                 building_box, reference_box = _select_regions(frame)
-                mapper = BuildingGridMapper(building_box, reference_box, analysis)
+                building_box, reference_box, cells = _confirm_regions(frame, building_box, reference_box)
+                mapper = BuildingGridMapper(building_box, reference_box, analysis, cells)
                 mapper.tracker.validate(frame)
                 magnifiers = tuple(RoiMotionMagnifier(roi, magnification, camera.fps) for roi in mapper.cells) if magnification.enabled else ()
             else:

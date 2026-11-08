@@ -2,7 +2,7 @@
 
 from collections import deque
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
 import cv2
 import numpy as np
@@ -61,10 +61,12 @@ class GridCellState:
 class BuildingGridMapper:
     """Tracks eight fixed inner regions after edge refinement establishes the building box."""
 
-    def __init__(self, bbox: Rect, reference_roi: Rect, analysis: AnalysisConfig):
+    def __init__(self, bbox: Rect, reference_roi: Rect, analysis: AnalysisConfig, cells: Optional[list[Rect]] = None):
         self.bbox = bbox
         self.analysis = analysis
-        self.cells = grid_cells(bbox)
+        self.cells = list(cells) if cells is not None else grid_cells(bbox)
+        if len(self.cells) != 8:
+            raise ValueError("the grid requires exactly eight tracking boxes")
         self.targets = tuple(TargetConfig(f"cell_{index}", roi) for index, roi in enumerate(self.cells))
         self.tracker = MotionTracker(reference_roi, self.targets, analysis.minimum_track_points)
         self.horizontal = {target.name: RollingVibrationAnalyzer(analysis) for target in self.targets}

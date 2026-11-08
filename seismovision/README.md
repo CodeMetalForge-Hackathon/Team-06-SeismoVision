@@ -83,4 +83,4 @@ cp grid_config.example.json grid_config.json
 python -m seismovision.grid_preview --config grid_config.json --camera picamera2
 ```
 
-`grid_config.json` exposes camera settings, FFT frequency bounds, FFT window/sample requirements, tracking-point threshold, camera-motion recalibration limits, and MEVM settings. Draw the boxes with the mouse, then press Enter after each selection. Press `r` to select and refine both boxes again; press `q` to quit. Keep the reference ROI on a stationary, textured object outside the cardboard model.
+`grid_config.json` exposes camera settings, FFT frequency bounds, FFT window/sample requirements, tracking-point threshold, camera-motion recalibration limits, and MEVM settings. After the initial selection, a confirmation screen shows the refined building box, stable reference, and all eight tracker boxes. Press Enter to start; press `b` or `s` to redraw the building or reference, or press `0`–`7` to redraw one tracker box. Press `r` during monitoring to select and refine both boxes again; press `q` to quit. Keep the reference ROI on a stationary, textured object outside the cardboard model.
