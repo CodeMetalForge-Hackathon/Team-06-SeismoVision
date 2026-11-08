@@ -99,9 +99,10 @@ class BuildingGridMapper:
         for target in self.targets:
             motion = motions[target.name]
             position = self.positions[target.name]
-            position += motion.relative_displacement
-            self.horizontal[target.name].add(timestamp, float(position[0]), motion.confidence)
-            self.vertical[target.name].add(timestamp, float(position[1]), motion.confidence)
+            if motion.confidence > 0.0:
+                position += motion.relative_displacement
+                self.horizontal[target.name].add(timestamp, float(position[0]), motion.confidence)
+                self.vertical[target.name].add(timestamp, float(position[1]), motion.confidence)
             axis, metrics = choose_stronger_axis(self.horizontal[target.name].metrics(), self.vertical[target.name].metrics())
             selected = self.horizontal[target.name] if axis == "horizontal" else self.vertical[target.name]
             self.spectra[target.name] = selected.spectrum()

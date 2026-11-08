@@ -7,8 +7,9 @@ import cv2
 import numpy as np
 
 from .capture import make_source
-from .config import AnalysisConfig, CameraConfig, Rect
+from .config import AnalysisConfig, CameraConfig, MagnificationConfig, Rect
 from .grid_mapping import BuildingGridMapper, GridCellState, refine_building_box
+from .magnification import RoiMotionMagnifier
 
 
 def _select_regions(frame: np.ndarray) -> tuple[Rect, Rect]:
@@ -76,6 +77,7 @@ def main() -> None:
     camera = CameraConfig(width=args.width, height=args.height, fps=args.fps)
     source = make_source(camera, args.camera, args.video)
     mapper = None
+    magnifiers = ()
     moved, settled = False, 0
     try:
         while True:
@@ -89,6 +91,7 @@ def main() -> None:
                 building_box, reference_box = _select_regions(frame)
                 mapper = BuildingGridMapper(building_box, reference_box, AnalysisConfig())
                 mapper.tracker.validate(frame)
+                magnifiers = tuple(RoiMotionMagnifier(roi, MagnificationConfig(), args.fps) for roi in mapper.cells)
             else:
                 camera_motion, states = mapper.update(frame, timestamp)
                 if camera_motion > mapper.analysis.max_camera_motion_px:
@@ -97,9 +100,14 @@ def main() -> None:
                     settled += 1
                     if settled >= mapper.analysis.camera_settle_frames:
                         mapper.reset_measurement()
+                        for magnifier in magnifiers:
+                            magnifier.reset()
                         moved, settled = False, 0
                         continue
-                preview = _draw_grid(frame, mapper, states)
+                magnified = frame
+                for magnifier in magnifiers:
+                    magnified = magnifier.apply(magnified, timestamp)
+                preview = _draw_grid(magnified, mapper, states)
                 dashboard_height = max(frame.shape[0], 720)
                 left = np.full((dashboard_height, frame.shape[1], 3), 10, dtype=np.uint8)
                 left[:frame.shape[0]] = preview
@@ -112,6 +120,7 @@ def main() -> None:
             key = cv2.waitKey(1) & 0xFF
             if key == ord("r"):
                 mapper, moved, settled = None, False, 0
+                magnifiers = ()
             elif key == ord("q"):
                 break
     finally:

@@ -175,10 +175,12 @@ def run(config: AppConfig, mode: str, video: Optional[str]) -> None:
             for target in config.targets:
                 movement = targets[target.name]
                 # Frequency is calculated on both image axes and reported from the stronger one.
-                cumulative_displacement[target.name] += movement.relative_displacement
+                if movement.confidence > 0.0:
+                    cumulative_displacement[target.name] += movement.relative_displacement
                 position = cumulative_displacement[target.name]
-                horizontal_analyzers[target.name].add(timestamp, float(position[0]), movement.confidence)
-                vertical_analyzers[target.name].add(timestamp, float(position[1]), movement.confidence)
+                if movement.confidence > 0.0:
+                    horizontal_analyzers[target.name].add(timestamp, float(position[0]), movement.confidence)
+                    vertical_analyzers[target.name].add(timestamp, float(position[1]), movement.confidence)
                 axis, metrics = choose_stronger_axis(horizontal_analyzers[target.name].metrics(), vertical_analyzers[target.name].metrics())
                 selected_analyzer = horizontal_analyzers[target.name] if axis == "horizontal" else vertical_analyzers[target.name]
                 spectra[target.name] = selected_analyzer.spectrum()

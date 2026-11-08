@@ -74,10 +74,13 @@ class RegionFlow:
         old = self._points[valid]
         new = new_points[valid] if new_points is not None else np.empty((0, 1, 2), np.float32)
         self._previous = gray
-        self._points = new.reshape(-1, 1, 2) if len(new) else self._detect(gray)
         count = len(new)
-        if count == 0:
-            return FlowResult(np.zeros(2), 0, 0.0, self._visible_points())
+        if count < self.min_points:
+            # Reacquire only within the original ROI; never changes the operator's boxes.
+            self._points = self._detect(gray)
+            count = 0 if self._points is None else len(self._points)
+            return FlowResult(np.zeros(2), count, 0.0, self._visible_points())
+        self._points = new.reshape(-1, 1, 2)
         vectors = (new - old).reshape(-1, 2)
         displacement = np.median(vectors, axis=0)
         # A robust spread measure makes independently moving foliage reduce confidence.
