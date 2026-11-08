@@ -74,6 +74,8 @@ class BuildingGridMapper:
         self.amplitude_history = {target.name: deque(maxlen=90) for target in self.targets}
         self.frequency_history = {target.name: deque(maxlen=90) for target in self.targets}
         self.spectra = {target.name: (np.empty(0), np.empty(0)) for target in self.targets}
+        self.spectral_bins = np.linspace(analysis.min_frequency_hz, analysis.max_frequency_hz, 32)
+        self.spectrogram_history = {target.name: deque(maxlen=90) for target in self.targets}
 
     def reset_measurement(self) -> None:
         self.tracker.reset()
@@ -87,6 +89,8 @@ class BuildingGridMapper:
             for history in histories.values():
                 history.clear()
         self.spectra = {target.name: (np.empty(0), np.empty(0)) for target in self.targets}
+        for history in self.spectrogram_history.values():
+            history.clear()
 
     def update(self, frame: np.ndarray, timestamp: float) -> tuple[float, Dict[str, GridCellState]]:
         reference_motion, motions = self.tracker.update(frame)
@@ -101,6 +105,12 @@ class BuildingGridMapper:
             axis, metrics = choose_stronger_axis(self.horizontal[target.name].metrics(), self.vertical[target.name].metrics())
             selected = self.horizontal[target.name] if axis == "horizontal" else self.vertical[target.name]
             self.spectra[target.name] = selected.spectrum()
+            spectrum_frequencies, spectrum_powers = self.spectra[target.name]
+            if len(spectrum_frequencies):
+                spectrum_column = np.interp(self.spectral_bins, spectrum_frequencies, spectrum_powers, left=0.0, right=0.0)
+            else:
+                spectrum_column = np.zeros_like(self.spectral_bins)
+            self.spectrogram_history[target.name].append(spectrum_column)
             smoothed = self.smoothers[target.name].update(timestamp, position)
             self.amplitude_history[target.name].append(smoothed.magnitude_px)
             self.frequency_history[target.name].append(metrics.dominant_hz)

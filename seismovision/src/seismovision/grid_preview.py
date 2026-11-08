@@ -21,38 +21,22 @@ def _select_regions(frame: np.ndarray) -> tuple[Rect, Rect]:
     return refine_building_box(frame, seed), reference  # type: ignore[return-value]
 
 
-COLORS = ((0, 255, 255), (255, 255, 0), (255, 0, 255), (0, 165, 255), (255, 255, 255), (0, 255, 0), (255, 0, 0), (180, 180, 255))
-
-
-def _history(panel: np.ndarray, top: int, bottom: int, title: str, histories: dict, maximum: float) -> None:
-    cv2.putText(panel, title, (8, top + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (235, 235, 235), 1)
-    left, right, graph_top = 8, panel.shape[1] - 8, top + 22
+def _spectrogram(panel: np.ndarray, bounds: tuple[int, int, int, int], index: int, history: object, max_frequency: float) -> None:
+    left, top, right, bottom = bounds
+    cv2.putText(panel, f"cell {index}: FFT amplitude", (left + 4, top + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (235, 235, 235), 1)
+    graph_top = top + 20
     cv2.rectangle(panel, (left, graph_top), (right, bottom), (100, 100, 100), 1)
-    for color, values in zip(COLORS, histories.values()):
-        points = []
-        for index, value in enumerate(values):
-            if value is None:
-                continue
-            x = left + int((right - left) * index / max(1, len(values) - 1))
-            y = bottom - int((bottom - graph_top) * min(value, maximum) / maximum)
-            points.append((x, y))
-        if len(points) > 1:
-            cv2.polylines(panel, [np.asarray(points, dtype=np.int32)], False, color, 1)
-    cv2.putText(panel, f"0-{maximum:.2f}", (left, bottom - 3), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (210, 210, 210), 1)
-
-
-def _spectrum(panel: np.ndarray, top: int, bottom: int, spectra: dict, max_frequency: float) -> None:
-    cv2.putText(panel, "FFT amplitude vs frequency", (8, top + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (235, 235, 235), 1)
-    left, right, graph_top = 8, panel.shape[1] - 8, top + 22
-    cv2.rectangle(panel, (left, graph_top), (right, bottom), (100, 100, 100), 1)
-    limit = max((float(np.max(np.log1p(power))) for _, power in spectra.values() if len(power)), default=0.0)
-    if limit > 0:
-        for color, (frequencies, powers) in zip(COLORS, spectra.values()):
-            if len(frequencies) < 2:
-                continue
-            points = [(left + int((right - left) * frequency / max_frequency), bottom - int((bottom - graph_top) * np.log1p(power) / limit)) for frequency, power in zip(frequencies, powers)]
-            cv2.polylines(panel, [np.asarray(points, dtype=np.int32)], False, color, 1)
-    cv2.putText(panel, f"0-{max_frequency:.1f}Hz", (left, bottom - 3), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (210, 210, 210), 1)
+    columns = list(history)
+    if columns:
+        data = np.asarray(columns, dtype=np.float32).T
+        limit = float(np.max(np.log1p(data)))
+        if limit > 0:
+            image = np.uint8(255 * np.log1p(data) / limit)
+            image = cv2.applyColorMap(np.flipud(image), cv2.COLORMAP_TURBO)
+            image = cv2.resize(image, (right - left - 2, bottom - graph_top - 2), interpolation=cv2.INTER_NEAREST)
+            panel[graph_top + 1:bottom - 1, left + 1:right - 1] = image
+    cv2.putText(panel, f"{max_frequency:.1f}Hz", (left + 3, graph_top + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (230, 230, 230), 1)
+    cv2.putText(panel, "time ->", (right - 48, bottom - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (230, 230, 230), 1)
 
 
 def _draw_grid(frame: np.ndarray, mapper: BuildingGridMapper, states: Dict[str, GridCellState]) -> np.ndarray:
@@ -119,11 +103,11 @@ def main() -> None:
                 dashboard_height = max(frame.shape[0], 720)
                 left = np.full((dashboard_height, frame.shape[1], 3), 10, dtype=np.uint8)
                 left[:frame.shape[0]] = preview
-                right = np.full((dashboard_height, 360, 3), 25, dtype=np.uint8)
-                amplitudes = [value for history in mapper.amplitude_history.values() for value in history]
-                _history(right, 0, 210, "motion amplitude vs time", mapper.amplitude_history, max(1.0, max(amplitudes, default=0.0)))
-                _history(right, 240, 450, "dominant frequency vs time", mapper.frequency_history, mapper.analysis.max_frequency_hz)
-                _spectrum(right, 480, 700, mapper.spectra, mapper.analysis.max_frequency_hz)
+                right = np.full((dashboard_height, 520, 3), 25, dtype=np.uint8)
+                graph_width, graph_height = right.shape[1] // 2, right.shape[0] // 4
+                for index, history in enumerate(mapper.spectrogram_history.values()):
+                    row, column = divmod(index, 2)
+                    _spectrogram(right, (column * graph_width, row * graph_height, (column + 1) * graph_width - 2, (row + 1) * graph_height - 2), index, history, mapper.analysis.max_frequency_hz)
                 cv2.imshow("SeismoVision grid map", cv2.hconcat((left, right)))
             key = cv2.waitKey(1) & 0xFF
             if key == ord("r"):
