@@ -115,6 +115,27 @@ class Decision:
     reasons: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class InterNodeFrequencyAssessment:
+    state: str
+    difference_hz: Optional[float]
+    deviation_from_baseline_hz: Optional[float]
+
+
+def assess_inter_node_frequency(roof: VibrationMetrics, mid_facade: VibrationMetrics, roof_config: TargetConfig, mid_facade_config: TargetConfig, config: AnalysisConfig) -> InterNodeFrequencyAssessment:
+    """Compares roof/mid response only when an engineer-calibrated difference limit exists."""
+    if roof.dominant_hz is None or mid_facade.dominant_hz is None:
+        return InterNodeFrequencyAssessment("NO_RESULT", None, None)
+    difference = abs(roof.dominant_hz - mid_facade.dominant_hz)
+    limit = config.inter_node_frequency_difference_limit_hz
+    if roof_config.baseline_hz is None or mid_facade_config.baseline_hz is None or limit is None:
+        return InterNodeFrequencyAssessment("BASELINE_REQUIRED", difference, None)
+    baseline_difference = abs(roof_config.baseline_hz - mid_facade_config.baseline_hz)
+    deviation = abs(difference - baseline_difference)
+    state = "INSPECTION_RECOMMENDED" if deviation > limit else "NORMAL_RELATIVE_TO_BASELINE"
+    return InterNodeFrequencyAssessment(state, difference, deviation)
+
+
 def choose_stronger_axis(horizontal: VibrationMetrics, vertical: VibrationMetrics) -> tuple[str, VibrationMetrics]:
     """Uses the axis with the larger observed peak for a single frequency report."""
     horizontal_peak = horizontal.peak_displacement_px or 0.0

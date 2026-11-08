@@ -3,7 +3,7 @@ import unittest
 
 import numpy as np
 
-from seismovision.analysis import LowPassVector, RollingVibrationAnalyzer, VibrationMetrics, choose_stronger_axis, evaluate
+from seismovision.analysis import LowPassVector, RollingVibrationAnalyzer, VibrationMetrics, assess_inter_node_frequency, choose_stronger_axis, evaluate
 from seismovision.config import AnalysisConfig, TargetConfig
 
 
@@ -58,6 +58,13 @@ class AnalysisTests(unittest.TestCase):
         self.assertGreater(result.magnitude_px, 0.0)
         self.assertLess(result.magnitude_px, 10.0)
         self.assertGreater(result.magnitude_rate_px_s, 0.0)
+
+    def test_inter_node_frequency_requires_calibrated_limit(self):
+        roof = TargetConfig("roofline", (0, 0, 10, 10), baseline_hz=1.0)
+        mid = TargetConfig("mid_facade", (0, 0, 10, 10), baseline_hz=1.0)
+        metrics = VibrationMetrics(300, 1.2, 0.4, 0.9)
+        result = assess_inter_node_frequency(metrics, metrics, roof, mid, self.config)
+        self.assertEqual(result.state, "BASELINE_REQUIRED")
 
 
 if __name__ == "__main__":

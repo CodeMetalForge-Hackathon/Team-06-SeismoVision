@@ -7,7 +7,7 @@ from typing import Optional
 import cv2
 import numpy as np
 
-from .analysis import LowPassVector, RollingVibrationAnalyzer, choose_stronger_axis, evaluate
+from .analysis import InterNodeFrequencyAssessment, LowPassVector, RollingVibrationAnalyzer, assess_inter_node_frequency, choose_stronger_axis, evaluate
 from .capture import make_source
 from .config import AppConfig, load_config
 from .evidence import EvidenceWriter
@@ -49,8 +49,28 @@ def _draw_spectrogram(image: np.ndarray, bounds: tuple[int, int, int, int], titl
     cv2.putText(image, "past -> now", (right - 58, bottom - 3), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (230, 230, 230), 1)
 
 
-def _draw_dashboard(width: int, history: dict, delta_history: deque, spectrograms: dict, min_frequency_hz: float, max_frequency_hz: float) -> np.ndarray:
-    panel_height = 330
+def _draw_fft_difference(image: np.ndarray, bounds: tuple[int, int, int, int], spectra: dict, roof_name: Optional[str], mid_name: Optional[str], min_frequency_hz: float, max_frequency_hz: float) -> None:
+    left, top, right, bottom = bounds
+    cv2.rectangle(image, (left, top), (right, bottom), (80, 80, 80), 1)
+    cv2.putText(image, "roof-mid normalized FFT difference", (left, top - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (230, 230, 230), 1)
+    if roof_name is None or mid_name is None:
+        return
+    roof_frequency, roof_power = spectra.get(roof_name, (np.empty(0), np.empty(0)))
+    mid_frequency, mid_power = spectra.get(mid_name, (np.empty(0), np.empty(0)))
+    if len(roof_frequency) < 2 or len(mid_frequency) < 2 or not np.any(roof_power) or not np.any(mid_power):
+        return
+    grid = np.linspace(min_frequency_hz, max_frequency_hz, 128)
+    roof_normalized = np.interp(grid, roof_frequency, roof_power, left=0.0, right=0.0) / np.max(roof_power)
+    mid_normalized = np.interp(grid, mid_frequency, mid_power, left=0.0, right=0.0) / np.max(mid_power)
+    difference = np.abs(roof_normalized - mid_normalized)
+    points = [(left + int((right - left) * index / (len(grid) - 1)), bottom - int((bottom - top) * value)) for index, value in enumerate(difference)]
+    cv2.polylines(image, [np.asarray(points, dtype=np.int32)], False, (0, 165, 255), 1)
+    cv2.putText(image, f"{min_frequency_hz:.1f}Hz", (left + 2, bottom - 3), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (230, 230, 230), 1)
+    cv2.putText(image, f"{max_frequency_hz:.1f}Hz", (right - 30, bottom - 3), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (230, 230, 230), 1)
+
+
+def _draw_dashboard(width: int, history: dict, delta_history: deque, spectrograms: dict, spectra: dict, min_frequency_hz: float, max_frequency_hz: float) -> np.ndarray:
+    panel_height = 420
     image = np.full((panel_height, width, 3), 20, dtype=np.uint8)
     colors = ((0, 255, 255), (255, 255, 0), (255, 0, 255))
     raw_magnitudes = [raw for values in history.values() for raw, _, _ in values]
@@ -64,16 +84,18 @@ def _draw_dashboard(width: int, history: dict, delta_history: deque, spectrogram
     _draw_line_graph(image, top_inset(0, 1), "frequency Hz", {name: [frequency for _, _, frequency in values] for name, values in history.items()}, max_frequency_hz, colors)
     delta_limit = max(1.0, max(delta_history, default=0.0))
     _draw_line_graph(image, top_inset(1, 1), "roof-mid delta LP px", {"delta": delta_history}, delta_limit, ((0, 165, 255),))
-    intensity_limit = max((float(np.max(values)) for values in spectrograms.values() if values), default=0.0)
-    spectrogram_bounds = lambda column: (column * half_width + 6, 180, (column + 1) * half_width - 6, panel_height - 18)
+    intensity_limit = max((float(np.max(sample)) for values in spectrograms.values() for sample in values), default=0.0)
+    spectrogram_bounds = lambda column: (column * half_width + 6, 180, (column + 1) * half_width - 6, 315)
     for index, (name, values) in enumerate(spectrograms.items()):
         if index == 2:
             break
         _draw_spectrogram(image, spectrogram_bounds(index), f"{name} spectrogram", values, min_frequency_hz, max_frequency_hz, intensity_limit)
+    roof_name = next((name for name in spectra if "roof" in name.lower()), None)
+    _draw_fft_difference(image, (6, 345, width - 6, panel_height - 18), spectra, roof_name, "mid_facade", min_frequency_hz, max_frequency_hz)
     return image
 
 
-def _annotate(frame: np.ndarray, config: AppConfig, reports: dict, reference_motion: np.ndarray, reference_points: np.ndarray) -> np.ndarray:
+def _annotate(frame: np.ndarray, config: AppConfig, reports: dict, reference_motion: np.ndarray, reference_points: np.ndarray, inter_node: object) -> np.ndarray:
     output = frame.copy()
     x, y, w, h = config.reference_roi
     cv2.rectangle(output, (x, y), (x + w, y + h), (255, 180, 0), 2)
@@ -103,6 +125,9 @@ def _annotate(frame: np.ndarray, config: AppConfig, reports: dict, reference_mot
     cv2.putText(output, "SCREENING ONLY - NOT A SAFETY CERTIFICATION", (12, output.shape[0] - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
     cv2.putText(output, f"reference motion: {np.linalg.norm(reference_motion):.2f}px", (12, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2)
     cv2.putText(output, "R: recalibrate tracking", (12, 46), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 255, 255), 1)
+    difference = "--" if inter_node.difference_hz is None else f"{inter_node.difference_hz:.2f}Hz"
+    color = (0, 180, 0) if inter_node.state == "NORMAL_RELATIVE_TO_BASELINE" else (0, 0, 255) if inter_node.state == "INSPECTION_RECOMMENDED" else (0, 180, 255)
+    cv2.putText(output, f"roof-mid frequency difference: {difference} {inter_node.state}", (12, 68), cv2.FONT_HERSHEY_SIMPLEX, 0.42, color, 1)
     return output
 
 
@@ -181,19 +206,26 @@ def run(config: AppConfig, mode: str, video: Optional[str]) -> None:
                 reports[target.name] = {"metrics": metrics, "axis": axis, "decision": evaluate(target, metrics, camera_motion, config.analysis), "motion": movement, "position": position.copy(), "smoothed_magnitude": smoothed.magnitude_px, "smoothed_rate": smoothed.magnitude_rate_px_s, "smoothed_vector": smoothed.vector}
             roof = next((report for name, report in reports.items() if "roof" in name.lower()), None)
             mid_facade = reports.get("mid_facade")
+            roof_target = next((target for target in config.targets if "roof" in target.name.lower()), None)
+            mid_facade_target = next((target for target in config.targets if target.name == "mid_facade"), None)
             if roof is not None and mid_facade is not None:
                 delta_history.append(float(np.linalg.norm(roof["smoothed_vector"] - mid_facade["smoothed_vector"])))
+            if roof is not None and mid_facade is not None and roof_target is not None and mid_facade_target is not None:
+                inter_node = assess_inter_node_frequency(roof["metrics"], mid_facade["metrics"], roof_target, mid_facade_target, config.analysis)
+            else:
+                inter_node = InterNodeFrequencyAssessment("NO_RESULT", None, None)
             if last_spectrogram_timestamp is None or timestamp - last_spectrogram_timestamp >= SPECTROGRAM_INTERVAL_SECONDS:
                 frequency_grid = np.linspace(config.analysis.min_frequency_hz, config.analysis.max_frequency_hz, SPECTROGRAM_BINS)
                 for name, (frequencies, powers) in spectra.items():
                     intensity = np.interp(frequency_grid, frequencies, powers, left=0.0, right=0.0) if len(frequencies) else np.zeros(SPECTROGRAM_BINS)
                     spectrograms[name].append(np.log1p(intensity))
                 last_spectrogram_timestamp = timestamp
-            preview = _annotate(frame, config, reports, reference_motion, tracker.reference_points)
+            preview = _annotate(frame, config, reports, reference_motion, tracker.reference_points, inter_node)
             magnified = magnifier.apply(preview, timestamp) if magnifier else preview
             record = {
                 "timestamp_monotonic": timestamp,
                 "camera_reference_motion_px": camera_motion,
+                "inter_node_frequency": {"state": inter_node.state, "difference_hz": inter_node.difference_hz, "deviation_from_baseline_hz": inter_node.deviation_from_baseline_hz},
                 "targets": {
                     name: {
                         "relative_displacement_px": reports[name]["motion"].relative_displacement.tolist(),
@@ -215,7 +247,7 @@ def run(config: AppConfig, mode: str, video: Optional[str]) -> None:
             }
             writer.write(record, frame, magnified)
             if config.output.show_preview:
-                cv2.imshow("SeismoVision", cv2.vconcat((magnified, _draw_dashboard(frame.shape[1], history, delta_history, spectrograms, config.analysis.min_frequency_hz, config.analysis.max_frequency_hz))))
+                cv2.imshow("SeismoVision", cv2.vconcat((magnified, _draw_dashboard(frame.shape[1], history, delta_history, spectrograms, spectra, config.analysis.min_frequency_hz, config.analysis.max_frequency_hz))))
                 key = cv2.waitKey(1) & 0xFF
                 if key == ord("r"):
                     recalibrate()

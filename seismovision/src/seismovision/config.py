@@ -34,6 +34,7 @@ class AnalysisConfig:
     minimum_track_points: int = 6
     max_camera_motion_px: float = 1.5
     camera_settle_frames: int = 15
+    inter_node_frequency_difference_limit_hz: Optional[float] = None
     minimum_confidence: float = 0.65
 
 
@@ -95,6 +96,8 @@ def load_config(path: Union[str, Path]) -> AppConfig:
         raise ValueError("analysis frequency limits are invalid")
     if analysis.camera_settle_frames < 1:
         raise ValueError("analysis.camera_settle_frames must be positive")
+    if analysis.inter_node_frequency_difference_limit_hz is not None and analysis.inter_node_frequency_difference_limit_hz <= 0:
+        raise ValueError("analysis.inter_node_frequency_difference_limit_hz must be positive")
     magnification = MagnificationConfig(**raw.get("magnification", {}))
     if magnification.enabled and magnification.target not in {t.name for t in targets}:
         raise ValueError("magnification.target must match a configured target")
