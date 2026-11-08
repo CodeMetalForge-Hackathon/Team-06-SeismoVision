@@ -27,6 +27,16 @@ class AutoRegionTests(unittest.TestCase):
     def test_blocked_frame_is_not_a_structure(self):
         self.assertIsNone(detect_structure(np.full((480, 640, 3), 20, np.uint8)))
 
+    def test_separates_box_from_similarly_colored_table(self):
+        frame = np.full((480, 640, 3), 205, np.uint8)
+        cv2.rectangle(frame, (0, 405), (639, 479), (85, 155, 205), -1)
+        cv2.rectangle(frame, (235, 60), (405, 145), (45, 130, 185), -1)
+        cv2.rectangle(frame, (260, 145), (380, 405), (45, 130, 185), -1)
+        cv2.rectangle(frame, (258, 145), (382, 195), (25, 25, 25), -1)
+        boxes = detect_structure(frame)
+        self.assertIsNotNone(boxes)
+        self.assertLess(boxes.full[1] + boxes.full[3], 430)
+
 
 if __name__ == "__main__":
     unittest.main()

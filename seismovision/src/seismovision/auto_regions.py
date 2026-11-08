@@ -50,7 +50,19 @@ def detect_structure(frame: np.ndarray) -> StructureBoxes | None:
     if len(visible_rows) < 0.18 * height:
         return None
     bottom = start + int(visible_rows[-1]) + 1
-    if bottom > 0.94 * height or bottom - start < 0.25 * height:
+    if bottom > 0.94 * height:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        vertical_gradient = np.abs(cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3))
+        profile = np.mean(vertical_gradient[:, left:right], axis=1)
+        first = start + int(0.3 * height)
+        last = int(0.94 * height)
+        if first >= last:
+            return None
+        candidate = first + int(np.argmax(profile[first:last]))
+        if profile[candidate] < 2.0 * np.median(profile[first:last]):
+            return None
+        bottom = candidate + 2
+    if bottom - start < 0.25 * height:
         return None
     body = cardboard[start + int(visible_rows[0]):bottom, left:right]
     column_counts = np.count_nonzero(body, axis=0)
@@ -70,9 +82,11 @@ def select_background_reference(frame: np.ndarray, target: Rect) -> Rect | None:
     margin = max(8, width // 40)
     regions = []
     if x - margin >= 0.18 * width:
-        regions.append((margin, max(margin, y), x - 2 * margin, min(h, height - y - margin)))
+        rw = min(x - 2 * margin, int(0.3 * width))
+        regions.append((x - margin - rw, max(margin, y), rw, min(h, height - y - margin)))
     if width - x - w - margin >= 0.18 * width:
-        regions.append((x + w + margin, max(margin, y), width - x - w - 2 * margin, min(h, height - y - margin)))
+        rw = min(width - x - w - 2 * margin, int(0.3 * width))
+        regions.append((x + w + margin, max(margin, y), rw, min(h, height - y - margin)))
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     scored = []
     for region in regions:
