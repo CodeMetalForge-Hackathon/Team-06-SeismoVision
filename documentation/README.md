@@ -1,15 +1,18 @@
 # Demo documentation
 
-GitHub-viewable versions of the team-supplied media from November 8, 2026. Photos are JPEG; videos are H.264 MP4. The original HEIC and MOV files remain available in the branch's Git history.
+Compressed previews of the team-supplied demo media. Original HEIC and MOV files remain in Git history. Videos have no audio and use a lower resolution and frame rate for browser viewing.
 
 ## Photos
 
-- [IMG_2336.jpg](IMG_2336.jpg), [IMG_2337.jpg](IMG_2337.jpg), [IMG_2339.jpg](IMG_2339.jpg): live grid and FFT display on a monitor.
-- [IMG_2340.jpg](IMG_2340.jpg), [IMG_2341.jpg](IMG_2341.jpg): close views of the tracked cardboard model and green feature cells.
+- [FFT spectrogram monitor](fft-spectrogram-monitor.jpg): frequency plots photographed on the monitor.
+- [Grid and spectrogram dashboard](grid-and-spectrogram-dashboard.jpg): tracked box beside its frequency panels.
+- [Multi-cell frequency history](multi-cell-frequency-history.jpg): multiple cell spectrograms.
+- [Cardboard feature tracking, front](cardboard-feature-tracking-front.jpg): tracked points and analysis cells on the box.
+- [Cardboard feature tracking, angle](cardboard-feature-tracking-angle.jpg): another view of the tracked box.
 
 ## Videos
 
-- [IMG_2333.mp4](IMG_2333.mp4): phone recording of the monitor and demo interface.
-- [IMG_2342.mp4](IMG_2342.mp4): second phone recording of the monitor and demo interface.
+- [Demo monitor preview](demo-monitor-preview.mp4)
+- [Demo interface preview](demo-interface-preview.mp4)
 
-These files document the demo interface. The videos include a monitor display and drawn overlays; they are not raw Raspberry Pi camera footage or calibrated ground truth. Graphs and colored cells show experimental motion observations, not building-entry clearance or a validated collapse prediction.
+These are phone recordings of the demo interface, not raw Raspberry Pi camera footage or calibrated ground truth. The graphs and cells show experimental motion observations, not building-entry clearance or a validated collapse prediction.
