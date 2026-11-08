@@ -1,7 +1,7 @@
 import math
 import unittest
 
-from seismovision.analysis import RollingVibrationAnalyzer, VibrationMetrics, evaluate
+from seismovision.analysis import RollingVibrationAnalyzer, VibrationMetrics, choose_stronger_axis, evaluate
 from seismovision.config import AnalysisConfig, TargetConfig
 
 
@@ -41,6 +41,13 @@ class AnalysisTests(unittest.TestCase):
         metrics = VibrationMetrics(300, 1.3, 0.4, 0.9)
         decision = evaluate(target, metrics, 0.1, self.config)
         self.assertEqual(decision.state, "INSPECTION_RECOMMENDED")
+
+    def test_frequency_uses_the_stronger_motion_axis(self):
+        horizontal = VibrationMetrics(300, 1.0, 0.2, 0.9)
+        vertical = VibrationMetrics(300, 1.4, 0.8, 0.9)
+        axis, metrics = choose_stronger_axis(horizontal, vertical)
+        self.assertEqual(axis, "vertical")
+        self.assertEqual(metrics.dominant_hz, 1.4)
 
 
 if __name__ == "__main__":

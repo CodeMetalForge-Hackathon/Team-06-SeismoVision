@@ -61,6 +61,13 @@ class Decision:
     reasons: tuple[str, ...]
 
 
+def choose_stronger_axis(horizontal: VibrationMetrics, vertical: VibrationMetrics) -> tuple[str, VibrationMetrics]:
+    """Uses the axis with the larger observed peak for a single frequency report."""
+    horizontal_peak = horizontal.peak_displacement_px or 0.0
+    vertical_peak = vertical.peak_displacement_px or 0.0
+    return ("vertical", vertical) if vertical_peak > horizontal_peak else ("horizontal", horizontal)
+
+
 def evaluate(target: TargetConfig, metrics: VibrationMetrics, camera_motion_px: float, config: AnalysisConfig) -> Decision:
     """Conservative policy: unreliable data never becomes a normal result."""
     if camera_motion_px > config.max_camera_motion_px:
