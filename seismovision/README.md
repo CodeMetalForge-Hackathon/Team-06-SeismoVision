@@ -11,7 +11,7 @@ It is not a building-safety certification system. Its only alert is **inspection
 - Automatic feature reacquisition after camera relocation, soft-shadow normalization, and visible tracking points.
 - Multiple building target regions tracked with Lucas-Kanade optical flow.
 - Rolling, timestamp-aware frequency and peak-displacement estimates.
-- Centered X/Y displacement arrows; low-pass displacement magnitude/rate; compact histories of magnitude, frequency, roof-to-mid-facade difference, and both-node FFT spectra.
+- Centered X/Y displacement arrows; low-pass displacement magnitude/rate; an extended live dashboard with raw/filtered magnitude, frequency, roof-to-mid-facade difference, and two color spectrograms.
 - A conservative baseline comparison and data-quality gate.
 - ROI-only Laplacian-pyramid temporal filtering for MEVM-style visualization.
 - JSON-lines evidence log and optional normal/magnified MP4 files.
