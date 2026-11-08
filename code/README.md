@@ -1,8 +1,10 @@
 # Implementation
 
-Reserved for the teammate building the Raspberry Pi prototype. This organization pass does not add or change device code.
+The Raspberry Pi prototype currently lives in [`../seismovision/`](../seismovision/). It includes a user-bounded 4 by 2 cardboard-building motion-map demo; its outputs are experimental measurements, not a building-entry decision or collapse prediction.
 
-When the implementation lands, document:
+Run and hardware notes are maintained in [`../seismovision/README.md`](../seismovision/README.md).
+
+Keep this handoff updated with:
 
 - Hardware and exact camera and sensor models.
 - Operating system, dependencies, and installation commands.

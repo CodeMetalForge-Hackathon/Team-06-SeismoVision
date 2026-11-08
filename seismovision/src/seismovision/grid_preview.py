@@ -1,4 +1,4 @@
-"""Live YOLO-bounded building grid preview."""
+"""Live user-bounded building grid preview."""
 
 import argparse
 from typing import Dict
@@ -21,35 +21,38 @@ def _select_regions(frame: np.ndarray) -> tuple[Rect, Rect]:
     return refine_building_box(frame, seed), reference  # type: ignore[return-value]
 
 
-def _heatmap(panel: np.ndarray, top: int, title: str, states: Dict[str, GridCellState], value: str, maximum: float) -> None:
+COLORS = ((0, 255, 255), (255, 255, 0), (255, 0, 255), (0, 165, 255), (255, 255, 255), (0, 255, 0), (255, 0, 0), (180, 180, 255))
+
+
+def _history(panel: np.ndarray, top: int, bottom: int, title: str, histories: dict, maximum: float) -> None:
     cv2.putText(panel, title, (8, top + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (235, 235, 235), 1)
-    cell_width, cell_height = (panel.shape[1] - 16) // 2, 42
-    for index, state in enumerate(states.values()):
-        row, column = divmod(index, 2)
-        left, y = 8 + column * cell_width, top + 22 + row * cell_height
-        raw = getattr(state, value)
-        intensity = 0 if raw is None else int(255 * min(float(raw) / maximum, 1.0))
-        color = tuple(int(channel) for channel in cv2.applyColorMap(np.uint8([[intensity]]), cv2.COLORMAP_TURBO)[0, 0])
-        cv2.rectangle(panel, (left, y), (left + cell_width - 4, y + cell_height - 4), color, cv2.FILLED)
-        label = "--" if raw is None else f"{float(raw):.2f}"
-        cv2.putText(panel, f"{index}: {label}", (left + 4, y + 24), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (10, 10, 10), 1)
-
-
-def _history(panel: np.ndarray, top: int, histories: dict, max_frequency: float) -> None:
-    cv2.putText(panel, "cell frequency history", (8, top + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (235, 235, 235), 1)
-    left, right, bottom = 8, panel.shape[1] - 8, panel.shape[0] - 10
-    cv2.rectangle(panel, (left, top + 22), (right, bottom), (100, 100, 100), 1)
-    colors = ((0, 255, 255), (255, 255, 0), (255, 0, 255), (0, 165, 255), (255, 255, 255), (0, 255, 0), (255, 0, 0), (180, 180, 255))
-    for color, values in zip(colors, histories.values()):
+    left, right, graph_top = 8, panel.shape[1] - 8, top + 22
+    cv2.rectangle(panel, (left, graph_top), (right, bottom), (100, 100, 100), 1)
+    for color, values in zip(COLORS, histories.values()):
         points = []
         for index, value in enumerate(values):
             if value is None:
                 continue
             x = left + int((right - left) * index / max(1, len(values) - 1))
-            y = bottom - int((bottom - (top + 22)) * min(value, max_frequency) / max_frequency)
+            y = bottom - int((bottom - graph_top) * min(value, maximum) / maximum)
             points.append((x, y))
         if len(points) > 1:
             cv2.polylines(panel, [np.asarray(points, dtype=np.int32)], False, color, 1)
+    cv2.putText(panel, f"0-{maximum:.2f}", (left, bottom - 3), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (210, 210, 210), 1)
+
+
+def _spectrum(panel: np.ndarray, top: int, bottom: int, spectra: dict, max_frequency: float) -> None:
+    cv2.putText(panel, "FFT amplitude vs frequency", (8, top + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (235, 235, 235), 1)
+    left, right, graph_top = 8, panel.shape[1] - 8, top + 22
+    cv2.rectangle(panel, (left, graph_top), (right, bottom), (100, 100, 100), 1)
+    limit = max((float(np.max(np.log1p(power))) for _, power in spectra.values() if len(power)), default=0.0)
+    if limit > 0:
+        for color, (frequencies, powers) in zip(COLORS, spectra.values()):
+            if len(frequencies) < 2:
+                continue
+            points = [(left + int((right - left) * frequency / max_frequency), bottom - int((bottom - graph_top) * np.log1p(power) / limit)) for frequency, power in zip(frequencies, powers)]
+            cv2.polylines(panel, [np.asarray(points, dtype=np.int32)], False, color, 1)
+    cv2.putText(panel, f"0-{max_frequency:.1f}Hz", (left, bottom - 3), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (210, 210, 210), 1)
 
 
 def _draw_grid(frame: np.ndarray, mapper: BuildingGridMapper, states: Dict[str, GridCellState]) -> np.ndarray:
@@ -63,9 +66,17 @@ def _draw_grid(frame: np.ndarray, mapper: BuildingGridMapper, states: Dict[str, 
         cv2.rectangle(output, (x, y), (x + width, y + height), color, 2)
         for point in state.motion.points:
             cv2.circle(output, tuple(point.astype(int)), 2, color, cv2.FILLED)
+        center = (x + width // 2, y + height // 2)
+        vector = np.clip(
+            state.position * 20.0,
+            (-width // 2 + 5, -height // 2 + 18),
+            (width // 2 - 5, height // 2 - 5),
+        ).astype(int)
+        cv2.arrowedLine(output, center, (center[0] + vector[0], center[1] + vector[1]), (0, 255, 255), 2, tipLength=0.25)
         hz = "--" if state.frequency_hz is None else f"{state.frequency_hz:.2f}Hz"
         label = f"{index} {hz}" + (" ANOMALY" if anomaly else "")
         cv2.putText(output, label, (x + 3, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.38, color, 1)
+        cv2.putText(output, f"{state.position[0]:+.1f}, {state.position[1]:+.1f}px", (x + 3, y + height - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (0, 255, 255), 1)
     return output
 
 
@@ -109,13 +120,10 @@ def main() -> None:
                 left = np.full((dashboard_height, frame.shape[1], 3), 10, dtype=np.uint8)
                 left[:frame.shape[0]] = preview
                 right = np.full((dashboard_height, 360, 3), 25, dtype=np.uint8)
-                frequencies = [state.frequency_hz for state in states.values() if state.frequency_hz is not None]
-                amplitudes = [state.smoothed_magnitude for state in states.values()]
-                scores = [state.anomaly_score for state in states.values() if state.anomaly_score is not None]
-                _heatmap(right, 0, "frequency Hz", states, "frequency_hz", max(1.0, max(frequencies, default=0.0)))
-                _heatmap(right, 195, "LP magnitude px", states, "smoothed_magnitude", max(1.0, max(amplitudes, default=0.0)))
-                _heatmap(right, 390, "frequency outlier score", states, "anomaly_score", max(3.0, max(scores, default=0.0)))
-                _history(right, 580, mapper.frequency_history, mapper.analysis.max_frequency_hz)
+                amplitudes = [value for history in mapper.amplitude_history.values() for value in history]
+                _history(right, 0, 210, "motion amplitude vs time", mapper.amplitude_history, max(1.0, max(amplitudes, default=0.0)))
+                _history(right, 240, 450, "dominant frequency vs time", mapper.frequency_history, mapper.analysis.max_frequency_hz)
+                _spectrum(right, 480, 700, mapper.spectra, mapper.analysis.max_frequency_hz)
                 cv2.imshow("SeismoVision grid map", cv2.hconcat((left, right)))
             key = cv2.waitKey(1) & 0xFF
             if key == ord("r"):

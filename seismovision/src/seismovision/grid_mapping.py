@@ -71,7 +71,9 @@ class BuildingGridMapper:
         self.vertical = {target.name: RollingVibrationAnalyzer(analysis) for target in self.targets}
         self.smoothers = {target.name: LowPassVector() for target in self.targets}
         self.positions = {target.name: np.zeros(2, dtype=float) for target in self.targets}
+        self.amplitude_history = {target.name: deque(maxlen=90) for target in self.targets}
         self.frequency_history = {target.name: deque(maxlen=90) for target in self.targets}
+        self.spectra = {target.name: (np.empty(0), np.empty(0)) for target in self.targets}
 
     def reset_measurement(self) -> None:
         self.tracker.reset()
@@ -81,8 +83,10 @@ class BuildingGridMapper:
             smoother.reset()
         for position in self.positions.values():
             position.fill(0.0)
-        for history in self.frequency_history.values():
-            history.clear()
+        for histories in (self.amplitude_history, self.frequency_history):
+            for history in histories.values():
+                history.clear()
+        self.spectra = {target.name: (np.empty(0), np.empty(0)) for target in self.targets}
 
     def update(self, frame: np.ndarray, timestamp: float) -> tuple[float, Dict[str, GridCellState]]:
         reference_motion, motions = self.tracker.update(frame)
@@ -94,8 +98,11 @@ class BuildingGridMapper:
             position += motion.relative_displacement
             self.horizontal[target.name].add(timestamp, float(position[0]), motion.confidence)
             self.vertical[target.name].add(timestamp, float(position[1]), motion.confidence)
-            _, metrics = choose_stronger_axis(self.horizontal[target.name].metrics(), self.vertical[target.name].metrics())
+            axis, metrics = choose_stronger_axis(self.horizontal[target.name].metrics(), self.vertical[target.name].metrics())
+            selected = self.horizontal[target.name] if axis == "horizontal" else self.vertical[target.name]
+            self.spectra[target.name] = selected.spectrum()
             smoothed = self.smoothers[target.name].update(timestamp, position)
+            self.amplitude_history[target.name].append(smoothed.magnitude_px)
             self.frequency_history[target.name].append(metrics.dominant_hz)
             if metrics.dominant_hz is not None:
                 frequencies.append(metrics.dominant_hz)

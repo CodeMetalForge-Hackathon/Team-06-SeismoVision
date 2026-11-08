@@ -4,7 +4,7 @@ An experimental, camera-first structural motion indicator for search and rescue 
 
 After an earthquake or other damaging event, responders may need to work near a structure whose condition is uncertain. The proposed field unit observes motion from a distance and presents measurements that could help responders notice a possible structural hazard. It is designed around edge processing when normal infrastructure is unavailable.
 
-**Status:** the project plan and demo scenarios are documented here. A teammate is developing the Raspberry Pi implementation separately and will push it to this repository. Nothing in this repository currently establishes a building-entry decision or predicts collapse.
+**Status:** the project plan and demo scenarios are documented here. An experimental Raspberry Pi prototype is available in [`seismovision/`](seismovision/). Nothing in this repository establishes a building-entry decision or predicts collapse.
 
 ## Start here
 
@@ -15,7 +15,7 @@ After an earthquake or other damaging event, responders may need to work near a 
 - [Hackathon logistics](docs/logistics/hackathon.md): official rubric, timeline, and submission requirements.
 - [Brainstorming sources](docs/brainstorm/README.md): live Google Doc and dated backup.
 - [Team collaboration](CONTRIBUTING.md): GitHub and Codex setup for all four teammates.
-- [Code folder](code/README.md): reserved for the implementation owner.
+- [Code folder](code/README.md): implementation overview and handoff notes.
 
 ## Planned live demonstration
 

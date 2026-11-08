@@ -76,7 +76,7 @@ python -m unittest discover -s tests -v
 
 ## Interactive 4×2 building map
 
-`seismovision-grid` is a separate, implemented demo pipeline. At startup, the operator draws a rough building box and a second stable reference box. The program refines the building selection from its strongest edge contour, freezes that result, splits it into four rows by two columns, and tracks smaller inner boxes. It draws tracker points and flags statistical frequency outliers as **anomalies**, not structural-safety verdicts. The right-hand dashboard shows cell frequency, low-pass motion magnitude, outlier score, and frequency history.
+`seismovision-grid` is a separate, implemented demo pipeline. At startup, the operator draws a rough building box and a second stable reference box. The program refines the building selection from its strongest edge contour, freezes that result, splits it into four rows by two columns, and tracks smaller inner boxes. It draws tracker points, camera-compensated displacement arrows, and flags statistical frequency outliers as **anomalies**, not structural-safety verdicts. The right-hand dashboard shows all-cell motion-amplitude and dominant-frequency histories, plus the current all-cell FFT amplitude-versus-frequency traces.
 
 ```bash
 python -m seismovision.grid_preview --camera picamera2
