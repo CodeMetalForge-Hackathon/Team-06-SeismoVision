@@ -55,6 +55,7 @@ class GridCellState:
     position: np.ndarray
     smoothed_magnitude: float
     frequency_hz: Optional[float]
+    fft_peak_power: Optional[float]
     anomaly_score: Optional[float]
 
 
@@ -128,12 +129,13 @@ class BuildingGridMapper:
                 self.frequency_history[target.name].clear()
                 self.spectrogram_history[target.name].clear()
                 self.spectra[target.name] = (np.empty(0), np.empty(0))
-                states[target.name] = GridCellState(target.name, target.roi, motion, position.copy(), 0.0, None, None)
+                states[target.name] = GridCellState(target.name, target.roi, motion, position.copy(), 0.0, None, None, None)
                 continue
             axis, metrics = choose_stronger_axis(self.horizontal[target.name].metrics(), self.vertical[target.name].metrics())
             selected = self.horizontal[target.name] if axis == "horizontal" else self.vertical[target.name]
             self.spectra[target.name] = selected.spectrum()
             spectrum_frequencies, spectrum_powers = self.spectra[target.name]
+            fft_peak_power = float(np.max(spectrum_powers)) if len(spectrum_powers) and np.any(spectrum_powers > 0) else None
             history = self.spectrogram_history[target.name]
             if len(spectrum_frequencies) and np.any(spectrum_powers > 0):
                 spectrum_column = np.interp(self.spectral_bins, spectrum_frequencies, spectrum_powers, left=0.0, right=0.0)
@@ -145,7 +147,7 @@ class BuildingGridMapper:
             smoothed = self.smoothers[target.name].update(timestamp, position)
             self.amplitude_history[target.name].append(smoothed.magnitude_px)
             self.frequency_history[target.name].append(metrics.dominant_hz)
-            states[target.name] = GridCellState(target.name, target.roi, motion, position.copy(), smoothed.magnitude_px, metrics.dominant_hz, None)
+            states[target.name] = GridCellState(target.name, target.roi, motion, position.copy(), smoothed.magnitude_px, metrics.dominant_hz, fft_peak_power, None)
 
         reliable = [state for state in states.values() if state.motion.confidence >= self.analysis.minimum_confidence]
 
@@ -153,19 +155,21 @@ class BuildingGridMapper:
             numbers = np.asarray([getattr(state, value) for state in values], dtype=float)
             if len(numbers) < 3:
                 return {}
+            if value == "fft_peak_power":
+                numbers = np.log1p(numbers)
             median = float(np.median(numbers))
             scale = max(0.02, 1.4826 * float(np.median(np.abs(numbers - median))))
-            return {state.name: abs(float(getattr(state, value)) - median) / scale for state in values}
+            return {state.name: abs(float(number) - median) / scale for state, number in zip(values, numbers)}
 
         frequency_scores = outlier_scores([state for state in reliable if state.frequency_hz is not None], "frequency_hz")
-        amplitude_scores = outlier_scores(reliable, "smoothed_magnitude")
+        peak_scores = outlier_scores([state for state in reliable if state.fft_peak_power is not None], "fft_peak_power")
         combined_scores = []
         for state in states.values():
             components = []
             if state.name in frequency_scores:
                 components.append(frequency_scores[state.name] / self.analysis.grid_frequency_outlier_limit)
-            if state.name in amplitude_scores:
-                components.append(amplitude_scores[state.name] / self.analysis.grid_amplitude_outlier_limit)
+            if state.name in peak_scores:
+                components.append(peak_scores[state.name] / self.analysis.grid_amplitude_outlier_limit)
             state.anomaly_score = max(components) if components else None
             if state.anomaly_score is not None:
                 combined_scores.append(state.anomaly_score)
