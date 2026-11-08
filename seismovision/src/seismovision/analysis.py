@@ -17,6 +17,42 @@ class VibrationMetrics:
     confidence: float
 
 
+@dataclass(frozen=True)
+class SmoothedVector:
+    vector: np.ndarray
+    magnitude_px: float
+    magnitude_rate_px_s: float
+
+
+class LowPassVector:
+    """Timestamp-aware low-pass filter for the measured two-axis displacement."""
+
+    def __init__(self, cutoff_hz: float = 0.5):
+        self.cutoff_hz = cutoff_hz
+        self._timestamp: Optional[float] = None
+        self._vector = np.zeros(2, dtype=float)
+        self._magnitude = 0.0
+
+    def reset(self) -> None:
+        self._timestamp = None
+        self._vector.fill(0.0)
+        self._magnitude = 0.0
+
+    def update(self, timestamp: float, vector: np.ndarray) -> SmoothedVector:
+        if self._timestamp is None:
+            self._timestamp = timestamp
+            self._vector = vector.astype(float).copy()
+            self._magnitude = float(np.linalg.norm(self._vector))
+            return SmoothedVector(self._vector.copy(), self._magnitude, 0.0)
+        dt = max(1e-3, timestamp - self._timestamp)
+        alpha = 1.0 - np.exp(-2.0 * np.pi * self.cutoff_hz * dt)
+        self._vector += alpha * (vector - self._vector)
+        magnitude = float(np.linalg.norm(self._vector))
+        rate = (magnitude - self._magnitude) / dt
+        self._timestamp, self._magnitude = timestamp, magnitude
+        return SmoothedVector(self._vector.copy(), magnitude, rate)
+
+
 class RollingVibrationAnalyzer:
     """Timestamp-aware frequency estimator for one unamplified displacement axis."""
 
@@ -53,6 +89,24 @@ class RollingVibrationAnalyzer:
             dominant = float(frequencies[valid][np.argmax(spectrum[valid])])
         peak = float(np.max(np.abs(uniform_values - np.median(uniform_values))))
         return VibrationMetrics(len(data), dominant, peak, float(np.mean(confidences)))
+
+    def spectrum(self) -> tuple[np.ndarray, np.ndarray]:
+        """Returns the current one-axis power spectrum inside the configured frequency band."""
+        if len(self.samples) < self.config.minimum_samples:
+            return np.empty(0), np.empty(0)
+        data = np.asarray(self.samples, dtype=float)
+        timestamps, values = data[:, 0], data[:, 1]
+        dt = float(np.median(np.diff(timestamps)))
+        if not np.isfinite(dt) or dt <= 0:
+            return np.empty(0), np.empty(0)
+        uniform_time = np.arange(timestamps[0], timestamps[-1], dt)
+        if len(uniform_time) < self.config.minimum_samples:
+            return np.empty(0), np.empty(0)
+        uniform_values = np.interp(uniform_time, timestamps, values)
+        frequencies = np.fft.rfftfreq(len(uniform_values), d=dt)
+        powers = np.abs(np.fft.rfft((uniform_values - np.mean(uniform_values)) * np.hanning(len(uniform_values)))) ** 2
+        valid = (frequencies >= self.config.min_frequency_hz) & (frequencies <= self.config.max_frequency_hz)
+        return frequencies[valid], powers[valid]
 
 
 @dataclass(frozen=True)

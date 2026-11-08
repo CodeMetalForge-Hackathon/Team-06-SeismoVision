@@ -1,7 +1,9 @@
 import math
 import unittest
 
-from seismovision.analysis import RollingVibrationAnalyzer, VibrationMetrics, choose_stronger_axis, evaluate
+import numpy as np
+
+from seismovision.analysis import LowPassVector, RollingVibrationAnalyzer, VibrationMetrics, choose_stronger_axis, evaluate
 from seismovision.config import AnalysisConfig, TargetConfig
 
 
@@ -48,6 +50,14 @@ class AnalysisTests(unittest.TestCase):
         axis, metrics = choose_stronger_axis(horizontal, vertical)
         self.assertEqual(axis, "vertical")
         self.assertEqual(metrics.dominant_hz, 1.4)
+
+    def test_low_pass_vector_reports_smoothed_magnitude_rate(self):
+        low_pass = LowPassVector()
+        low_pass.update(0.0, np.array([0.0, 0.0]))
+        result = low_pass.update(0.1, np.array([10.0, 0.0]))
+        self.assertGreater(result.magnitude_px, 0.0)
+        self.assertLess(result.magnitude_px, 10.0)
+        self.assertGreater(result.magnitude_rate_px_s, 0.0)
 
 
 if __name__ == "__main__":
